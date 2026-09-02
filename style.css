@@ -16,7 +16,6 @@
   --cursor-blade: url("cursor.png") 36 4, auto;
   --cursor-blade-pointer: url("cursor.png") 36 4, pointer;
 
-  --arena-h: 620px;
   --enemy-w: 128px;
 }
 
@@ -24,18 +23,16 @@
 
 html, body {
   margin: 0;
-  min-height: 100vh;
+  height: 100%;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
   cursor: var(--cursor-blade);
+  overflow: hidden;
 }
 
 body {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 16px;
   background-image:
     radial-gradient(circle, rgba(255,255,255,0.55) 1px, transparent 1.4px),
     radial-gradient(circle, rgba(255,255,255,0.35) 1px, transparent 1.4px),
@@ -56,22 +53,20 @@ body {
 
 .cabinet {
   width: 100%;
-  max-width: 920px;
+  height: 100%;
   background: var(--panel);
-  border: 3px solid var(--edge);
-  border-radius: 10px;
-  padding: 18px 20px 14px;
+  padding: 16px 22px 14px;
   position: relative;
-  box-shadow: 0 0 0 1px #000, 0 20px 60px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
 }
 
 .cabinet::before {
   content: "";
   position: absolute;
-  top: -3px; left: -3px; right: -3px;
-  height: 6px;
+  top: 0; left: 0; right: 0;
+  height: 4px;
   background: linear-gradient(90deg, var(--magenta), var(--cyan) 50%, var(--gold));
-  border-radius: 10px 10px 0 0;
 }
 
 .mute-btn {
@@ -186,9 +181,9 @@ body {
 
 .arena {
   position: relative;
-  height: var(--arena-h);
+  flex: 1 1 auto;
+  min-height: 0;
   border-radius: 10px;
-  border: 2px solid var(--edge);
   background: rgba(11, 14, 36, 0.4);
   overflow: hidden;
 }
@@ -196,8 +191,8 @@ body {
 @media (max-width: 520px) {
   :root {
     --enemy-w: 100px;
-    --arena-h: 680px;
   }
+  .cabinet { padding: 12px 14px 10px; }
 }
 
 .enemy {
