@@ -3,7 +3,6 @@
 
   // ---------- Config ----------
   const ROUND_SECONDS = 60;
-  const COMBO_WINDOW_MS = 5000;   // countdown after each KILL before the combo breaks
   const HIT_BASE_SCORE = 3;
   const HIGH_SCORE_KEY = "keyOfLightHighScore";
   const MUTED_KEY = "keyOfLightMuted";
@@ -42,10 +41,8 @@
   let score = 0;
   let timeLeft = ROUND_SECONDS;
   let combo = 0;
-  let lastComboAnchorAt = 0; // refreshed on kills; starts the clock on a fresh combo
   let gameActive = false;
   let countdownTimer = null;
-  let comboTickTimer = null;
   let rafId = null;
   let lastFrameTime = 0;
   let slots = []; // { el, inner, portrait, nameEl, pipEls, hp, enemy, x, y, vx, vy, w, h, moving }
@@ -377,16 +374,10 @@
     return tier;
   }
 
-  // isKill: true when this hit was the one that defeated the enemy.
-  // Only a kill refills the 5-second combo clock; regular hits still
-  // raise the combo count (and tier/multiplier) but let the clock keep
-  // draining — so staying "in combo" means landing kills, not just hits.
-  function registerHitForCombo(isKill) {
-    const startingFresh = combo === 0;
+  // Called only when a hit defeats an enemy — regular (non-defeating)
+  // hits no longer touch the combo at all.
+  function registerKillForCombo() {
     combo += 1;
-    if (isKill || startingFresh) {
-      lastComboAnchorAt = Date.now();
-    }
     const tier = currentTier();
     comboCountEl.textContent = `×${combo}`;
     comboCountEl.style.color = tier.color;
@@ -402,16 +393,6 @@
     comboCountEl.textContent = "×0";
     comboCountEl.style.color = "var(--text-dim)";
     comboFillEl.style.width = "0%";
-  }
-
-  function tickComboDecay() {
-    if (!gameActive || combo === 0) return;
-    const elapsed = Date.now() - lastComboAnchorAt;
-    const remaining = Math.max(0, 1 - elapsed / COMBO_WINDOW_MS);
-    comboFillEl.style.width = `${remaining * 100}%`;
-    if (elapsed >= COMBO_WINDOW_MS) {
-      breakCombo("No kill in time — combo broken.");
-    }
   }
 
   // ---------- Hit effects ----------
@@ -468,7 +449,7 @@
     if (!gameActive || slot.locked || slot.hp <= 0) return;
 
     const willKill = slot.hp <= 1;
-    registerHitForCombo(willKill);
+    if (willKill) registerKillForCombo();
     const tier = currentTier();
     slot.hp -= 1;
     const hitsLanded = HITS_TO_DEFEAT - slot.hp;
@@ -531,7 +512,6 @@
     score = 0;
     timeLeft = ROUND_SECONDS;
     combo = 0;
-    lastComboAnchorAt = 0;
     gameActive = true;
     lastFrameTime = 0;
 
@@ -548,17 +528,14 @@
     endOverlay.classList.add("overlay--hidden");
 
     clearInterval(countdownTimer);
-    clearInterval(comboTickTimer);
     cancelAnimationFrame(rafId);
     countdownTimer = setInterval(tickCountdown, 1000);
-    comboTickTimer = setInterval(tickComboDecay, 100);
     rafId = requestAnimationFrame(animationLoop);
   }
 
   function endGame() {
     gameActive = false;
     clearInterval(countdownTimer);
-    clearInterval(comboTickTimer);
     cancelAnimationFrame(rafId);
 
     const best = loadHighScore();
