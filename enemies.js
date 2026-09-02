@@ -18,13 +18,15 @@
                  freq: base pitch in Hz — lower numbers sound heavier/thuddier,
                        higher numbers sound lighter/sparklier
                Change wave/freq per enemy for a totally different hit sound.
-    soundUrl - The hit sound actually played. Every enemy below points at a
-               real, hosted MP3 (Mixkit sound effects — free, royalty-free,
-               no attribution required, no download needed). When soundUrl
-               is set it's used instead of the synthesized "sound" tone.
-               Swap it for your own link, or a local file like
-               "assets/hit-goblin.mp3", any time — or delete the line to
-               fall back to the synth tone.
+    soundUrl - The hit sound actually played. Every enemy below has real,
+               hosted MP3s (Mixkit sound effects — free, royalty-free, no
+               attribution required, no download needed) wired up via
+               "hitSounds": a 3-item array, one per click — [1st hit,
+               2nd hit, defeating 3rd hit]. When "hitSounds" is set it's
+               used instead of the synthesized "sound" tone. Swap any
+               entry for your own link, or a local file like
+               "assets/hit-goblin-1.mp3", any time — or delete the array
+               to fall back to the synth tone.
 
   Replace the "image" value with your own link, e.g.:
     image: "https://example.com/my-shadow-creature.png"
@@ -40,8 +42,12 @@ const ENEMY_ROSTER = [
     tint: "#ff6b9d",
     speed: 55,
     sound: { wave: "triangle", freq: 330 },
-    // "Magic sparkle touch" — Mixkit, free & royalty-free, no attribution required.
-    soundUrl: "https://assets.mixkit.co/active_storage/sfx/3083/3083-preview.mp3"
+    // Mixkit, free & royalty-free, no attribution required.
+    hitSounds: [
+      "https://assets.mixkit.co/active_storage/sfx/2581/2581-preview.mp3", // Magical light aura
+      "https://assets.mixkit.co/active_storage/sfx/2583/2583-preview.mp3", // Magical light transition
+      "https://assets.mixkit.co/active_storage/sfx/3083/3083-preview.mp3"  // Magic sparkle touch (defeat)
+    ]
   },
   {
     name: "Gloom Wisp",
@@ -50,8 +56,11 @@ const ENEMY_ROSTER = [
     tint: "#6bc6ff",
     speed: 70,
     sound: { wave: "sine", freq: 440 },
-    // "Stardust swish" — Mixkit.
-    soundUrl: "https://assets.mixkit.co/active_storage/sfx/1498/1498-preview.mp3"
+    hitSounds: [
+      "https://assets.mixkit.co/active_storage/sfx/1498/1498-preview.mp3", // Stardust swish
+      "https://assets.mixkit.co/active_storage/sfx/2586/2586-preview.mp3", // Magical light sweep
+      "https://assets.mixkit.co/active_storage/sfx/3082/3082-preview.mp3"  // Magic sparkle poof hit (defeat)
+    ]
   },
   {
     name: "Ashen Wraith",
@@ -60,8 +69,11 @@ const ENEMY_ROSTER = [
     tint: "#f4c95d",
     speed: 40,
     sound: { wave: "square", freq: 220 },
-    // "Magic spell of light" — Mixkit.
-    soundUrl: "https://assets.mixkit.co/active_storage/sfx/2588/2588-preview.mp3"
+    hitSounds: [
+      "https://assets.mixkit.co/active_storage/sfx/2148/2148-preview.mp3", // Weak hit impact
+      "https://assets.mixkit.co/active_storage/sfx/2150/2150-preview.mp3", // Impact of a blow
+      "https://assets.mixkit.co/active_storage/sfx/3057/3057-preview.mp3"  // Apocalyptic stomp impact (defeat)
+    ]
   },
   {
     name: "Static Nightling",
@@ -70,8 +82,11 @@ const ENEMY_ROSTER = [
     tint: "#b98bff",
     speed: 85,
     sound: { wave: "sawtooth", freq: 180 },
-    // "Small electric glitch" — Mixkit.
-    soundUrl: "https://assets.mixkit.co/active_storage/sfx/2595/2595-preview.mp3"
+    hitSounds: [
+      "https://assets.mixkit.co/active_storage/sfx/2595/2595-preview.mp3", // Small electric glitch
+      "https://assets.mixkit.co/active_storage/sfx/2597/2597-preview.mp3", // Static electric glitch
+      "https://assets.mixkit.co/active_storage/sfx/2951/2951-preview.mp3"  // Digital glitch break (defeat)
+    ]
   },
   {
     name: "Ember Phantom",
@@ -80,8 +95,11 @@ const ENEMY_ROSTER = [
     tint: "#ff9770",
     speed: 50,
     sound: { wave: "square", freq: 260 },
-    // "Exciting fast hit" — Mixkit.
-    soundUrl: "https://assets.mixkit.co/active_storage/sfx/2180/2180-preview.mp3"
+    hitSounds: [
+      "https://assets.mixkit.co/active_storage/sfx/2299/2299-preview.mp3", // Short bass hit
+      "https://assets.mixkit.co/active_storage/sfx/2303/2303-preview.mp3", // Futuristic bass hit
+      "https://assets.mixkit.co/active_storage/sfx/756/756-preview.mp3"    // Falling hit on gravel (defeat)
+    ]
   },
   {
     name: "Void Glimmer",
@@ -90,8 +108,11 @@ const ENEMY_ROSTER = [
     tint: "#7ef5d0",
     speed: 95,
     sound: { wave: "sine", freq: 520 },
-    // "Magic wand sparkle" — Mixkit.
-    soundUrl: "https://assets.mixkit.co/active_storage/sfx/3062/3062-preview.mp3"
+    hitSounds: [
+      "https://assets.mixkit.co/active_storage/sfx/3062/3062-preview.mp3", // Magic wand sparkle
+      "https://assets.mixkit.co/active_storage/sfx/2588/2588-preview.mp3", // Magic spell of light
+      "https://assets.mixkit.co/active_storage/sfx/788/788-preview.mp3"    // Big cinematic impact (defeat)
+    ]
   }
 ];
 
