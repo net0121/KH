@@ -16,7 +16,7 @@
   --cursor-blade: url("cursor.png") 36 4, auto;
   --cursor-blade-pointer: url("cursor.png") 36 4, pointer;
 
-  --arena-h: 440px;
+  --arena-h: 620px;
   --enemy-w: 128px;
 }
 
@@ -56,7 +56,7 @@ body {
 
 .cabinet {
   width: 100%;
-  max-width: 720px;
+  max-width: 920px;
   background: var(--panel);
   border: 3px solid var(--edge);
   border-radius: 10px;
@@ -196,7 +196,7 @@ body {
 @media (max-width: 520px) {
   :root {
     --enemy-w: 100px;
-    --arena-h: 520px;
+    --arena-h: 680px;
   }
 }
 
