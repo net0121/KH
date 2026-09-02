@@ -3,15 +3,15 @@
 
   // ---------- Config ----------
   const ROUND_SECONDS = 60;
-  const COMBO_WINDOW_MS = 5000;   // time allowed after a kill before the combo breaks
+  const COMBO_WINDOW_MS = 5000;
   const HIT_BASE_SCORE = 3;
   const HIGH_SCORE_KEY = "keyOfLightHighScore";
   const MUTED_KEY = "keyOfLightMuted";
+  const XP_KEY = "keyOfLightXP";
+  const BASE_SPELL_COSTS = [10, 15, 20];
 
-  // PNG source for Thundaga strikes (change this path to replace the graphic)
   const THUNDER_PNG_URL = "https://github.com/net0121/KH/blob/main/badthundaga.png?raw=true";
 
-  // Combo tiers: [minCombo, multiplier, color]
   const COMBO_TIERS = [
     { min: 0, mult: 1, color: "var(--magenta)" },
     { min: 5, mult: 1.5, color: "var(--cyan)" },
@@ -28,14 +28,13 @@
   let mouseY = 0;
 
   document.addEventListener("mousemove", (e) => {
-    if (!arena) return;
     const rect = arena.getBoundingClientRect();
     mouseX = e.clientX - rect.left;
     mouseY = e.clientY - rect.top;
   });
 
-  // ---------- Spells ----------
-  const SPELLS = ['Firaga', 'Blizzaga', 'Thundaga'];
+  // ---------- Spells & Magic Tiers ----------
+  const BASE_SPELLS = ['Fire', 'Blizzard', 'Thunder'];
   let currentSpellIndex = 0;
   let spellMenuOpen = false;
   let activeBarriers = [];
@@ -59,6 +58,9 @@
   const newBestNote = document.getElementById("newBestNote");
 
   const spellMenuEl = document.getElementById("spellMenu");
+  const levelDisplayEl = document.getElementById("levelDisplay");
+  const xpFillEl = document.getElementById("xpFill");
+  const mpFillEl = document.getElementById("mpFill");
 
   // ---------- State ----------
   let score = 0;
@@ -72,6 +74,61 @@
   let lastFrameTime = 0;
   let slots = [];
   let muted = localStorage.getItem(MUTED_KEY) === "1";
+
+  // RPG State
+  let playerXp = Number(localStorage.getItem(XP_KEY)) || 0;
+  let playerLevel = 1;
+  let maxMp = 100;
+  let currentMp = 100;
+
+  function getMagicTier() {
+    if (playerLevel >= 10) return 3; // -aga
+    if (playerLevel >= 5) return 2;  // -ara
+    return 1;                        // base
+  }
+
+  function getSpellName(index) {
+    const tier = getMagicTier();
+    const suffixes = [
+      ['Fire', 'Fira', 'Firaga'],
+      ['Blizzard', 'Blizzara', 'Blizzaga'],
+      ['Thunder', 'Thundara', 'Thundaga']
+    ];
+    return suffixes[index][tier - 1];
+  }
+
+  function updatePlayerStats() {
+    const newLevel = Math.floor(Math.sqrt(playerXp / 50)) + 1;
+    if (newLevel > playerLevel) {
+      playerLevel = newLevel;
+      statusText.textContent = `Level Up! Reached Level ${playerLevel}.`;
+    }
+    
+    const xpForCurrent = 50 * Math.pow(playerLevel - 1, 2);
+    const xpForNext = 50 * Math.pow(playerLevel, 2);
+    const xpProgress = ((playerXp - xpForCurrent) / (xpForNext - xpForCurrent)) * 100;
+
+    maxMp = 80 + (playerLevel * 20);
+    levelDisplayEl.textContent = playerLevel;
+    xpFillEl.style.width = `${Math.min(100, Math.max(0, xpProgress))}%`;
+    mpFillEl.style.width = `${(currentMp / maxMp) * 100}%`;
+  }
+
+  function restoreMp(amount) {
+    currentMp = Math.min(maxMp, currentMp + amount);
+    mpFillEl.style.width = `${(currentMp / maxMp) * 100}%`;
+  }
+
+  function drainMp(amount) {
+    if (currentMp >= amount) {
+      currentMp -= amount;
+      mpFillEl.style.width = `${(currentMp / maxMp) * 100}%`;
+      return true;
+    }
+    mpFillEl.classList.add("mp-empty");
+    setTimeout(() => mpFillEl.classList.remove("mp-empty"), 200);
+    return false;
+  }
 
   // ================================================================
   // AUDIO
@@ -302,9 +359,7 @@
     const arenaH = arena.clientHeight;
     const arenaRect = arena.getBoundingClientRect();
 
-    // Barrier position & collision update
     activeBarriers.forEach(b => {
-      // Update barrier center to track cursor
       b.x = mouseX;
       b.y = mouseY;
       b.el.style.left = (b.x - b.radius) + 'px';
@@ -320,7 +375,7 @@
         
         if (dist < (w / 2 + b.radius)) {
           if (b.type === 'firaga') {
-            slot.hp = 1; // Instant kill setup
+            slot.hp = 1;
             handleHit(slot, { clientX: arenaRect.left + scx, clientY: arenaRect.top + scy });
           } else if (b.type === 'blizzaga') {
             if (!slot.freezeTimer || slot.freezeTimer <= 0) {
@@ -332,7 +387,6 @@
     });
 
     for (const slot of slots) {
-      // Freeze condition
       if (slot.freezeTimer && slot.freezeTimer > 0) {
         slot.freezeTimer -= dt * 1000;
         slot.inner.classList.add('is-frozen');
@@ -517,6 +571,8 @@
 
     const point = hitPoint(slot, evt);
     playHitSound(slot.enemy, hitsLanded);
+    
+    restoreMp(2);
 
     if (slot.hp > 0) {
       const gained = Math.round(HIT_BASE_SCORE * tier.mult);
@@ -532,6 +588,12 @@
       slot.moving = false;
       const gained = Math.round(slot.enemy.points * tier.mult);
       score += gained;
+      
+      playerXp += gained;
+      localStorage.setItem(XP_KEY, playerXp);
+      updatePlayerStats();
+      restoreMp(8);
+
       spawnStarBurst(slot, point.x, point.y, true);
       showFloater(slot, `+${gained}`);
       slot.inner.classList.add("is-defeated");
@@ -583,6 +645,10 @@
     breakCombo(null);
     statusText.textContent = "Strike a shadow to begin.";
 
+    updatePlayerStats();
+    currentMp = maxMp;
+    updatePlayerStats();
+
     buildArena();
     slots.forEach((slot) => spawnEnemy(slot, false));
 
@@ -626,19 +692,28 @@
     if (!spellMenuEl) return;
     const items = spellMenuEl.querySelectorAll('.spell-item');
     items.forEach((item, index) => {
+      item.textContent = getSpellName(index);
       if (index === currentSpellIndex) item.classList.add('selected');
       else item.classList.remove('selected');
     });
   }
 
-  function castSpell(spellName) {
-    if (spellName === 'Firaga') {
-      spawnBarrier('firaga', 150);
-    } else if (spellName === 'Blizzaga') {
-      spawnBarrier('blizzaga', 160);
-    } else if (spellName === 'Thundaga') {
+  function castSpell(spellIndex) {
+    const magicTier = getMagicTier();
+    const cost = BASE_SPELL_COSTS[spellIndex] * magicTier;
+
+    if (!drainMp(cost)) {
+      statusText.textContent = "Not enough MP!";
+      return;
+    }
+
+    if (spellIndex === 0) {
+      spawnBarrier('firaga', 100 + (magicTier * 25));
+    } else if (spellIndex === 1) {
+      spawnBarrier('blizzaga', 120 + (magicTier * 20));
+    } else if (spellIndex === 2) {
       const rect = arena.getBoundingClientRect();
-      castThundaga(rect);
+      castThunder(rect, magicTier);
     }
   }
 
@@ -664,46 +739,54 @@
     }, 4000);
   }
 
-  function castThundaga(arenaRect) {
+  function castThunder(arenaRect, tier) {
     if (!gameActive) return;
 
-    const boltWidth = 120;
-    const tx = mouseX; // Target directly on current cursor X coordinate
+    const numBolts = tier === 3 ? 5 : (tier === 2 ? 3 : 1);
+    const spreadWidth = tier === 3 ? 350 : (tier === 2 ? 200 : 0);
 
-    // Create single bolt element from PNG
-    const el = document.createElement('img');
-    el.className = 'thundaga-bolt';
-    el.src = THUNDER_PNG_URL;
-    el.style.position = 'absolute';
-    el.style.left = (tx - boltWidth / 2) + 'px';
-    el.style.top = '0px';
-    el.style.width = boltWidth + 'px';
-    el.style.height = arenaRect.height + 'px';
-    el.style.pointerEvents = 'none';
-    el.style.opacity = '1';
-    el.style.transition = 'opacity 0.35s ease-out';
-    arena.appendChild(el);
-
-    // Trigger instant hit detection along the bolt column
-    slots.forEach(slot => {
-      if (slot.hp <= 0 || slot.locked) return;
-      const w = slot.w || slot.el.offsetWidth;
-      const scx = slot.x + w / 2;
-      const scy = slot.y + (slot.h || slot.el.offsetHeight) / 2;
-
-      if (Math.abs(scx - tx) < (w / 2 + boltWidth / 2)) {
-        slot.hp = 1;
-        handleHit(slot, { clientX: arenaRect.left + scx, clientY: arenaRect.top + scy });
+    for (let i = 0; i < numBolts; i++) {
+      const boltWidth = 120;
+      let tx = mouseX;
+      
+      if (i > 0) {
+        tx += (Math.random() - 0.5) * spreadWidth;
       }
-    });
+      
+      tx = Math.max(boltWidth / 2, Math.min(arenaRect.width - boltWidth / 2, tx));
 
-    // Start fading out after impact, then cleanup DOM node
-    requestAnimationFrame(() => {
-      el.style.opacity = '0';
-    });
-    setTimeout(() => {
-      if (el.parentNode) el.remove();
-    }, 350);
+      const el = document.createElement('img');
+      el.className = 'thundaga-bolt';
+      el.src = THUNDER_PNG_URL;
+      el.style.position = 'absolute';
+      el.style.left = (tx - boltWidth / 2) + 'px';
+      el.style.top = '0px';
+      el.style.width = boltWidth + 'px';
+      el.style.height = arenaRect.height + 'px';
+      el.style.pointerEvents = 'none';
+      el.style.opacity = '1';
+      el.style.transition = 'opacity 0.35s ease-out';
+      arena.appendChild(el);
+
+      slots.forEach(slot => {
+        if (slot.hp <= 0 || slot.locked) return;
+        const w = slot.w || slot.el.offsetWidth;
+        const scx = slot.x + w / 2;
+        const scy = slot.y + (slot.h || slot.el.offsetHeight) / 2;
+
+        if (Math.abs(scx - tx) < (w / 2 + boltWidth / 2)) {
+          slot.hp = 1;
+          handleHit(slot, { clientX: arenaRect.left + scx, clientY: arenaRect.top + scy });
+        }
+      });
+
+      requestAnimationFrame(() => {
+        el.style.opacity = '0';
+      });
+      setTimeout(() => {
+        if (el.parentNode) el.remove();
+      }, 350);
+    }
   }
 
   // --- Input overrides for Spell Menu ---
@@ -722,9 +805,9 @@
     if (!spellMenuOpen) return;
     e.preventDefault();
     if (e.deltaY > 0) {
-      currentSpellIndex = (currentSpellIndex + 1) % SPELLS.length;
+      currentSpellIndex = (currentSpellIndex + 1) % BASE_SPELLS.length;
     } else {
-      currentSpellIndex = (currentSpellIndex - 1 + SPELLS.length) % SPELLS.length;
+      currentSpellIndex = (currentSpellIndex - 1 + BASE_SPELLS.length) % BASE_SPELLS.length;
     }
     updateSpellMenuUI();
   }, { passive: false });
@@ -736,10 +819,9 @@
       e.stopPropagation();
       spellMenuOpen = false;
       spellMenuEl.classList.add('overlay--hidden');
-      castSpell(SPELLS[currentSpellIndex]);
+      castSpell(currentSpellIndex);
     }
   }, true);
-
 
   // ---------- Wire up ----------
   document.addEventListener("DOMContentLoaded", () => {
@@ -756,5 +838,6 @@
     loadHighScore();
     buildArena();
     slots.forEach((slot) => spawnEnemy(slot, false));
+    updatePlayerStats();
   });
 })();
