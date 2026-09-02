@@ -3,6 +3,7 @@
 
   // ---------- Config ----------
   const ROUND_SECONDS = 60;
+  const COMBO_WINDOW_MS = 5000;   // time allowed after a kill before the combo breaks
   const HIT_BASE_SCORE = 3;
   const HIGH_SCORE_KEY = "keyOfLightHighScore";
   const MUTED_KEY = "keyOfLightMuted";
@@ -41,8 +42,10 @@
   let score = 0;
   let timeLeft = ROUND_SECONDS;
   let combo = 0;
+  let lastKillAt = 0; // refreshed on every kill; drives the combo countdown
   let gameActive = false;
   let countdownTimer = null;
+  let comboTickTimer = null;
   let rafId = null;
   let lastFrameTime = 0;
   let slots = []; // { el, inner, portrait, nameEl, pipEls, hp, enemy, x, y, vx, vy, w, h, moving }
@@ -375,9 +378,11 @@
   }
 
   // Called only when a hit defeats an enemy — regular (non-defeating)
-  // hits no longer touch the combo at all.
+  // hits still don't touch the combo. Every kill also refills the
+  // 5-second countdown; let it run out and the streak breaks.
   function registerKillForCombo() {
     combo += 1;
+    lastKillAt = Date.now();
     const tier = currentTier();
     comboCountEl.textContent = `×${combo}`;
     comboCountEl.style.color = tier.color;
@@ -393,6 +398,16 @@
     comboCountEl.textContent = "×0";
     comboCountEl.style.color = "var(--text-dim)";
     comboFillEl.style.width = "0%";
+  }
+
+  function tickComboDecay() {
+    if (!gameActive || combo === 0) return;
+    const elapsed = Date.now() - lastKillAt;
+    const remaining = Math.max(0, 1 - elapsed / COMBO_WINDOW_MS);
+    comboFillEl.style.width = `${remaining * 100}%`;
+    if (elapsed >= COMBO_WINDOW_MS) {
+      breakCombo("No kill in time — combo broken.");
+    }
   }
 
   // ---------- Hit effects ----------
@@ -512,6 +527,7 @@
     score = 0;
     timeLeft = ROUND_SECONDS;
     combo = 0;
+    lastKillAt = 0;
     gameActive = true;
     lastFrameTime = 0;
 
@@ -528,14 +544,17 @@
     endOverlay.classList.add("overlay--hidden");
 
     clearInterval(countdownTimer);
+    clearInterval(comboTickTimer);
     cancelAnimationFrame(rafId);
     countdownTimer = setInterval(tickCountdown, 1000);
+    comboTickTimer = setInterval(tickComboDecay, 100);
     rafId = requestAnimationFrame(animationLoop);
   }
 
   function endGame() {
     gameActive = false;
     clearInterval(countdownTimer);
+    clearInterval(comboTickTimer);
     cancelAnimationFrame(rafId);
 
     const best = loadHighScore();
