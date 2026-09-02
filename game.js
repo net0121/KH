@@ -52,10 +52,11 @@
   let muted = localStorage.getItem(MUTED_KEY) === "1";
 
   // ================================================================
-  // AUDIO — synthesized per-enemy hit sounds via the Web Audio API.
-  // No files to load; every enemy's "sound" config in enemies.js
-  // (wave + freq) drives a unique tone. If an enemy defines a
-  // "soundUrl" instead, that real audio file is played instead.
+  // AUDIO — each enemy's 3 clicks play their own hit sound, defined as
+  // enemy.hitSounds[0..2] in enemies.js (real hosted MP3s). If an enemy
+  // has no hitSounds, we fall back to a synthesized tone built from its
+  // "sound" config (wave + freq), so the game still works with zero
+  // audio files if you strip them out.
   // ================================================================
   let audioCtx = null;
   const audioElCache = new Map();
@@ -131,6 +132,13 @@
 
   // hitsLanded: 1, 2, or 3 (3 = the defeating blow)
   function playHitSound(enemy, hitsLanded) {
+    if (enemy.hitSounds && enemy.hitSounds.length) {
+      const clip = enemy.hitSounds[Math.min(hitsLanded, enemy.hitSounds.length) - 1];
+      if (clip) {
+        playFileSound(clip);
+        return;
+      }
+    }
     if (enemy.soundUrl) {
       playFileSound(enemy.soundUrl);
       return;
