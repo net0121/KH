@@ -44,9 +44,9 @@ const ENEMY_ROSTER = [
     sound: { wave: "triangle", freq: 330 },
     // Mixkit, free & royalty-free, no attribution required.
     hitSounds: [
-      "https://assets.mixkit.co/active_storage/sfx/2581/2581-preview.mp3", // Magical light aura
-      "https://assets.mixkit.co/active_storage/sfx/2583/2583-preview.mp3", // Magical light transition
-      "https://assets.mixkit.co/active_storage/sfx/3083/3083-preview.mp3"  // Magic sparkle touch (defeat)
+      "https://github.com/net0121/KH/blob/503a75b9337b446c1535910647cc9b9bc7449fd8/se_trail_hit_stab_m01.wav", // Magical light aura
+      "https://github.com/net0121/KH/blob/503a75b9337b446c1535910647cc9b9bc7449fd8/se_trail_hit_slash_s01.wav", // Magical light transition
+      "https://github.com/net0121/KH/blob/503a75b9337b446c1535910647cc9b9bc7449fd8/se_trail_hit_slash_m01.wav"  // Magic sparkle touch (defeat)
     ]
   },
   {
@@ -57,9 +57,9 @@ const ENEMY_ROSTER = [
     speed: 70,
     sound: { wave: "sine", freq: 440 },
     hitSounds: [
-      "https://assets.mixkit.co/active_storage/sfx/1498/1498-preview.mp3", // Stardust swish
-      "https://assets.mixkit.co/active_storage/sfx/2586/2586-preview.mp3", // Magical light sweep
-      "https://assets.mixkit.co/active_storage/sfx/3082/3082-preview.mp3"  // Magic sparkle poof hit (defeat)
+      "https://github.com/net0121/KH/blob/503a75b9337b446c1535910647cc9b9bc7449fd8/se_trail_hit_stab_m01.wav", // Stardust swish
+      "https://github.com/net0121/KH/blob/503a75b9337b446c1535910647cc9b9bc7449fd8/se_trail_hit_slash_s01.wav", // Magical light sweep
+      "https://github.com/net0121/KH/blob/503a75b9337b446c1535910647cc9b9bc7449fd8/se_trail_hit_slash_m01.wav"  // Magic sparkle poof hit (defeat)
     ]
   },
   {
@@ -70,9 +70,9 @@ const ENEMY_ROSTER = [
     speed: 40,
     sound: { wave: "square", freq: 220 },
     hitSounds: [
-      "https://assets.mixkit.co/active_storage/sfx/2148/2148-preview.mp3", // Weak hit impact
-      "https://assets.mixkit.co/active_storage/sfx/2150/2150-preview.mp3", // Impact of a blow
-      "https://assets.mixkit.co/active_storage/sfx/3057/3057-preview.mp3"  // Apocalyptic stomp impact (defeat)
+      "https://github.com/net0121/KH/blob/503a75b9337b446c1535910647cc9b9bc7449fd8/se_trail_hit_stab_m01.wav", // Weak hit impact
+      "https://github.com/net0121/KH/blob/503a75b9337b446c1535910647cc9b9bc7449fd8/se_trail_hit_slash_s01.wav", // Impact of a blow
+      "https://github.com/net0121/KH/blob/503a75b9337b446c1535910647cc9b9bc7449fd8/se_trail_hit_slash_m01.wav"  // Apocalyptic stomp impact (defeat)
     ]
   },
   {
@@ -83,9 +83,9 @@ const ENEMY_ROSTER = [
     speed: 85,
     sound: { wave: "sawtooth", freq: 180 },
     hitSounds: [
-      "https://assets.mixkit.co/active_storage/sfx/2595/2595-preview.mp3", // Small electric glitch
-      "https://assets.mixkit.co/active_storage/sfx/2597/2597-preview.mp3", // Static electric glitch
-      "https://assets.mixkit.co/active_storage/sfx/2951/2951-preview.mp3"  // Digital glitch break (defeat)
+      "https://github.com/net0121/KH/blob/503a75b9337b446c1535910647cc9b9bc7449fd8/se_trail_hit_stab_m01.wav", // Small electric glitch
+      "https://github.com/net0121/KH/blob/503a75b9337b446c1535910647cc9b9bc7449fd8/se_trail_hit_slash_s01.wav", // Static electric glitch
+      "https://github.com/net0121/KH/blob/503a75b9337b446c1535910647cc9b9bc7449fd8/se_trail_hit_slash_m01.wav"  // Digital glitch break (defeat)
     ]
   },
   {
@@ -96,9 +96,9 @@ const ENEMY_ROSTER = [
     speed: 50,
     sound: { wave: "square", freq: 260 },
     hitSounds: [
-      "https://assets.mixkit.co/active_storage/sfx/2299/2299-preview.mp3", // Short bass hit
-      "https://assets.mixkit.co/active_storage/sfx/2303/2303-preview.mp3", // Futuristic bass hit
-      "https://assets.mixkit.co/active_storage/sfx/756/756-preview.mp3"    // Falling hit on gravel (defeat)
+      "https://github.com/net0121/KH/blob/503a75b9337b446c1535910647cc9b9bc7449fd8/se_trail_hit_stab_m01.wav", // Short bass hit
+      "https://github.com/net0121/KH/blob/503a75b9337b446c1535910647cc9b9bc7449fd8/se_trail_hit_slash_s01.wav", // Futuristic bass hit
+      "https://github.com/net0121/KH/blob/503a75b9337b446c1535910647cc9b9bc7449fd8/se_trail_hit_slash_m01.wav"    // Falling hit on gravel (defeat)
     ]
   },
   {
@@ -109,9 +109,9 @@ const ENEMY_ROSTER = [
     speed: 95,
     sound: { wave: "sine", freq: 520 },
     hitSounds: [
-      "https://assets.mixkit.co/active_storage/sfx/3062/3062-preview.mp3", // Magic wand sparkle
-      "https://assets.mixkit.co/active_storage/sfx/2588/2588-preview.mp3", // Magic spell of light
-      "https://assets.mixkit.co/active_storage/sfx/788/788-preview.mp3"    // Big cinematic impact (defeat)
+      "https://github.com/net0121/KH/blob/503a75b9337b446c1535910647cc9b9bc7449fd8/se_trail_hit_stab_m01.wav", // Magic wand sparkle
+      "https://github.com/net0121/KH/blob/503a75b9337b446c1535910647cc9b9bc7449fd8/se_trail_hit_slash_s01.wav", // Magic spell of light
+      "https://github.com/net0121/KH/blob/503a75b9337b446c1535910647cc9b9bc7449fd8/se_trail_hit_slash_m01.wav"    // Big cinematic impact (defeat)
     ]
   }
 ];
