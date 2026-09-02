@@ -379,7 +379,7 @@
             handleHit(slot, { clientX: arenaRect.left + scx, clientY: arenaRect.top + scy });
           } else if (b.type === 'blizzaga') {
             if (!slot.freezeTimer || slot.freezeTimer <= 0) {
-              slot.freezeTimer = 5000;
+              slot.freezeTimer = 3000 + (b.tier * 2000); 
             }
           }
         }
@@ -708,16 +708,16 @@
     }
 
     if (spellIndex === 0) {
-      spawnBarrier('firaga', 100 + (magicTier * 25));
+      spawnBarrier('firaga', 80 + (magicTier * 20), magicTier);
     } else if (spellIndex === 1) {
-      spawnBarrier('blizzaga', 120 + (magicTier * 20));
+      spawnBarrier('blizzaga', 140 + (magicTier * 40), magicTier);
     } else if (spellIndex === 2) {
       const rect = arena.getBoundingClientRect();
       castThunder(rect, magicTier);
     }
   }
 
-  function spawnBarrier(type, radius) {
+  function spawnBarrier(type, radius, tier) {
     const el = document.createElement('div');
     el.className = `barrier ${type}-barrier`;
     
@@ -730,7 +730,7 @@
     
     arena.appendChild(el);
     
-    const barrier = { type, x: mouseX, y: mouseY, radius, el };
+    const barrier = { type, x: mouseX, y: mouseY, radius, tier, el };
     activeBarriers.push(barrier);
     
     setTimeout(() => {
@@ -743,50 +743,53 @@
     if (!gameActive) return;
 
     const numBolts = tier === 3 ? 5 : (tier === 2 ? 3 : 1);
-    const spreadWidth = tier === 3 ? 350 : (tier === 2 ? 200 : 0);
-
-    for (let i = 0; i < numBolts; i++) {
-      const boltWidth = 120;
-      let tx = mouseX;
-      
-      if (i > 0) {
-        tx += (Math.random() - 0.5) * spreadWidth;
-      }
-      
-      tx = Math.max(boltWidth / 2, Math.min(arenaRect.width - boltWidth / 2, tx));
-
-      const el = document.createElement('img');
-      el.className = 'thundaga-bolt';
-      el.src = THUNDER_PNG_URL;
-      el.style.position = 'absolute';
-      el.style.left = (tx - boltWidth / 2) + 'px';
-      el.style.top = '0px';
-      el.style.width = boltWidth + 'px';
-      el.style.height = arenaRect.height + 'px';
-      el.style.pointerEvents = 'none';
-      el.style.opacity = '1';
-      el.style.transition = 'opacity 0.35s ease-out';
-      arena.appendChild(el);
-
-      slots.forEach(slot => {
-        if (slot.hp <= 0 || slot.locked) return;
-        const w = slot.w || slot.el.offsetWidth;
-        const scx = slot.x + w / 2;
-        const scy = slot.y + (slot.h || slot.el.offsetHeight) / 2;
-
-        if (Math.abs(scx - tx) < (w / 2 + boltWidth / 2)) {
-          slot.hp = 1;
-          handleHit(slot, { clientX: arenaRect.left + scx, clientY: arenaRect.top + scy });
-        }
-      });
-
-      requestAnimationFrame(() => {
-        el.style.opacity = '0';
-      });
-      setTimeout(() => {
-        if (el.parentNode) el.remove();
-      }, 350);
+    const boltWidth = 120;
+    
+    let targets = [];
+    if (tier === 1) {
+      targets.push(mouseX);
+    } else {
+      targets = Array.from({ length: numBolts }, () => Math.random() * arenaRect.width);
     }
+
+    targets.forEach((tx, index) => {
+      setTimeout(() => {
+        if (!gameActive) return;
+        
+        const el = document.createElement('img');
+        el.className = 'thundaga-bolt';
+        el.src = THUNDER_PNG_URL;
+        el.style.position = 'absolute';
+        el.style.left = (tx - boltWidth / 2) + 'px';
+        el.style.top = '0px';
+        el.style.width = boltWidth + 'px';
+        el.style.height = arenaRect.height + 'px';
+        el.style.pointerEvents = 'none';
+        el.style.opacity = '1';
+        el.style.transition = 'opacity 0.35s ease-out';
+        arena.appendChild(el);
+
+        slots.forEach(slot => {
+          if (slot.hp <= 0 || slot.locked) return;
+          const w = slot.w || slot.el.offsetWidth;
+          const scx = slot.x + w / 2;
+          const scy = slot.y + (slot.h || slot.el.offsetHeight) / 2;
+
+          if (Math.abs(scx - tx) < (w / 2 + boltWidth / 2)) {
+            slot.hp = 1;
+            handleHit(slot, { clientX: arenaRect.left + scx, clientY: arenaRect.top + scy });
+          }
+        });
+
+        requestAnimationFrame(() => {
+          el.style.opacity = '0';
+        });
+        setTimeout(() => {
+          if (el.parentNode) el.remove();
+        }, 350);
+        
+      }, index * 80); 
+    });
   }
 
   // --- Input overrides for Spell Menu ---
