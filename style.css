@@ -411,7 +411,7 @@ body {
   cursor: var(--cursor-blade);
 }
 
-.overlay--hidden { display: none; }
+.overlay--hidden { display: none !important; }
 
 .overlay-card {
   background: var(--panel);
@@ -492,4 +492,89 @@ body {
 .enemy:focus-visible {
   outline: 3px solid var(--cyan);
   outline-offset: 2px;
+}
+
+/* ---------- Spells Menu & Effects ---------- */
+
+.spell-menu {
+  position: fixed;
+  background: rgba(10, 14, 39, 0.95);
+  border: 2px solid var(--gold);
+  border-radius: 8px;
+  padding: 8px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  pointer-events: none; /* Allows the capture click listener to trigger */
+  transform: translate(0, 0);
+}
+
+.spell-item {
+  padding: 8px 16px;
+  color: var(--text-dim);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 14px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.spell-item.selected {
+  background: var(--panel-alt);
+  color: var(--text);
+  box-shadow: 0 0 8px rgba(107, 198, 255, 0.4);
+  border-left: 4px solid var(--cyan);
+  padding-left: 12px;
+}
+
+.barrier {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.firaga-barrier {
+  background: radial-gradient(circle, rgba(255, 92, 92, 0.5) 0%, rgba(255, 92, 92, 0.1) 60%, transparent 80%);
+  border: 2px dashed #ff5c5c;
+  animation: spinFire 3s linear infinite;
+}
+
+.blizzaga-barrier {
+  background: radial-gradient(circle, rgba(107, 198, 255, 0.4) 0%, rgba(107, 198, 255, 0.1) 60%, transparent 80%);
+  border: 2px solid #6bc6ff;
+  animation: pulseIce 1.5s ease-in-out infinite alternate;
+}
+
+.thundaga-bolt {
+  position: absolute;
+  background: linear-gradient(to bottom, #ffffff, #f4c95d 80%, transparent);
+  box-shadow: 0 0 15px var(--gold);
+  z-index: 8;
+  pointer-events: none;
+  animation: strike 0.3s ease-out forwards;
+}
+
+@keyframes spinFire {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.05); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes pulseIce {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(1.1); opacity: 1; }
+}
+
+@keyframes strike {
+  0% { opacity: 1; transform: scaleX(1); }
+  50% { opacity: 1; transform: scaleX(2.5); }
+  100% { opacity: 0; transform: scaleX(0.1); }
+}
+
+.enemy-inner.is-frozen {
+  filter: hue-rotate(180deg) brightness(1.3) saturate(1.5) !important;
+  border-color: var(--cyan) !important;
 }
