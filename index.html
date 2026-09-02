@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KEY OF LIGHT — Star Strike</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="cabinet">
+
+    <header class="hud">
+      <div class="hud-stat">
+        <span class="hud-label">Score</span>
+        <span class="hud-value" id="score">0</span>
+      </div>
+
+      <div class="hud-combo">
+        <span class="hud-label">Combo <span id="comboCount">×0</span></span>
+        <div class="combo-track">
+          <div class="combo-fill" id="comboFill"></div>
+        </div>
+      </div>
+
+      <div class="hud-stat hud-stat--right">
+        <span class="hud-label">Time</span>
+        <span class="hud-value" id="time">60</span>
+      </div>
+    </header>
+
+    <p class="tagline">Wield your key-shaped blade against creatures of shadow. Three strikes banish each foe — chain hits fast to ignite starlight combos.</p>
+
+    <main class="arena" id="arena">
+      <!-- Enemy slots injected by game.js -->
+    </main>
+
+    <footer class="statusbar">
+      <span id="statusText">Strike a shadow to begin.</span>
+      <span class="highscore">Best: <strong id="highscore">0</strong></span>
+    </footer>
+
+  </div>
+
+  <div class="overlay" id="startOverlay">
+    <div class="overlay-card">
+      <h1>KEY OF LIGHT</h1>
+      <p>Every shadow falls in exactly three strikes. Chain your hits quickly to raise the combo tier and multiply your score — hesitate too long and the starlight fades.</p>
+      <button class="btn" id="startBtn">Begin Trial</button>
+    </div>
+  </div>
+
+  <div class="overlay overlay--hidden" id="endOverlay">
+    <div class="overlay-card">
+      <h1 id="endHeading">LIGHT FADES</h1>
+      <p class="final-score">Final Score: <span id="finalScore">0</span></p>
+      <p id="newBestNote" class="new-best-note overlay--hidden">New best score!</p>
+      <button class="btn" id="restartBtn">Strike Again</button>
+    </div>
+  </div>
+
+  <script src="enemies.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
