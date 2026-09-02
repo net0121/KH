@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KEY OF LIGHT — Star Strike</title>
+<title>KH Test</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -34,14 +34,14 @@
       </div>
     </header>
 
-    <p class="tagline">Wield your key-shaped blade against drifting creatures of shadow. Three strikes banish each foe — chain hits fast to ignite starlight combos.</p>
+    <p class="tagline">Wield your keyblade against the Heartless. Three strikes destroy them, and you can stack each kill for a combo.</p>
 
     <main class="arena" id="arena">
       <!-- Enemy slots injected by game.js -->
     </main>
 
     <footer class="statusbar">
-      <span id="statusText">Strike a shadow to begin.</span>
+      <span id="statusText">Strike a Heartless to begin.</span>
       <span class="highscore">Best: <strong id="highscore">0</strong></span>
     </footer>
 
@@ -50,14 +50,14 @@
   <div class="overlay" id="startOverlay">
     <div class="overlay-card">
       <h1>KEY OF LIGHT</h1>
-      <p>Every shadow falls in exactly three strikes. Chain your hits quickly to raise the combo tier and multiply your score — hesitate too long and the starlight fades.</p>
+      <p>Wield your keyblade against the Heartless. Three strikes destroy them, and you can stack each kill for a combo.</p>
       <button class="btn" id="startBtn">Begin Trial</button>
     </div>
   </div>
 
   <div class="overlay overlay--hidden" id="endOverlay">
     <div class="overlay-card">
-      <h1 id="endHeading">LIGHT FADES</h1>
+      <h1 id="endHeading">Times Up!</h1>
       <p class="final-score">Final Score: <span id="finalScore">0</span></p>
       <p id="newBestNote" class="new-best-note overlay--hidden">New best score!</p>
       <button class="btn" id="restartBtn">Strike Again</button>
@@ -66,9 +66,9 @@
 
   <!-- SPELL MENU -->
   <div id="spellMenu" class="spell-menu overlay--hidden">
-    <div class="spell-item selected">🔥 Firaga</div>
-    <div class="spell-item">❄️ Blizzaga</div>
-    <div class="spell-item">⚡ Thundaga</div>
+    <div class="spell-item selected">Firaga</div>
+    <div class="spell-item">Blizzaga</div>
+    <div class="spell-item">Thundaga</div>
   </div>
 
   <script src="enemies.js"></script>
