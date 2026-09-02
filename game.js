@@ -681,7 +681,7 @@
       highscoreEl.textContent = score;
     }
 
-    endHeading.textContent = "LIGHT FADES";
+    endHeading.textContent = "Times Up";
     finalScoreEl.textContent = score;
     newBestNote.classList.toggle("overlay--hidden", !isNewBest);
     endOverlay.classList.remove("overlay--hidden");
