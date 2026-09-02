@@ -3,9 +3,9 @@
   --panel: #141a3d;
   --panel-alt: #1c2454;
   --edge: #33407a;
-  --magenta: #ff6b9d;   /* heart-light pink */
-  --cyan: #6bc6ff;      /* moonlight blue */
-  --gold: #f4c95d;      /* keyblade gold */
+  --magenta: #ff6b9d;
+  --cyan: #6bc6ff;
+  --gold: #f4c95d;
   --text: #f5f3ff;
   --text-dim: #9aa0d4;
   --danger: #ff5c5c;
@@ -170,6 +170,29 @@ body {
   transition: width 0.1s linear, background 0.2s ease;
 }
 
+.stat-track {
+  height: 8px;
+  width: 70px;
+  background: #0b0e24;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.stat-fill {
+  height: 100%;
+  width: 0%;
+  transition: width 0.2s ease;
+}
+
+.xp-fill { background: var(--gold); }
+.mp-fill { 
+  background: var(--cyan); 
+  transition: width 0.1s linear, background 0.2s ease; 
+}
+.mp-empty { background: var(--danger); }
+
 .tagline {
   margin: 12px 2px 16px;
   font-size: 13.5px;
@@ -239,8 +262,6 @@ body {
   animation: spawnin 0.28s ease;
 }
 
-/* Name label — floats above the blob, shown on hover/focus so the
-   circle stays clean while it drifts around the arena. */
 .enemy-name {
   position: absolute;
   left: 50%;
@@ -267,7 +288,6 @@ body {
   transform: translate(-50%, -10px);
 }
 
-/* Pips — a small arc pinned to the underside of the circle. */
 .enemy-pips {
   position: absolute;
   left: 50%;
@@ -507,7 +527,7 @@ body {
   flex-direction: column;
   gap: 4px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.6);
-  pointer-events: none; /* Allows the capture click listener to trigger */
+  pointer-events: none;
   transform: translate(0, 0);
 }
 
