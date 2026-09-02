@@ -9,7 +9,7 @@
   const MUTED_KEY = "keyOfLightMuted";[cite: 6]
 
   // PNG source for Thundaga strikes (change this path to replace the graphic)
-  const THUNDER_PNG_URL = "assets/thunder.png";[cite: 6]
+  const THUNDER_PNG_URL = "https://github.com/net0121/KH/blob/main/badthundaga.png?raw=true";[cite: 6]
 
   // Combo tiers: [minCombo, multiplier, color]
   const COMBO_TIERS = [[cite: 6]
