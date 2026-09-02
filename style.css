@@ -13,8 +13,8 @@
   --font-display: "Baloo 2", sans-serif;
   --font-body: "Quicksand", sans-serif;
 
-  --cursor-blade: url("https://github.com/net0121/KH/blob/main/keyblade.png?raw=true") 36 4, auto;
-  --cursor-blade-pointer: url("https://github.com/net0121/KH/blob/main/keyblade.png?raw=true") 36 4, pointer;
+  --cursor-blade: url("https://github.com/net0121/KH/blob/main/keyblade-bicubic%20(1).png?raw=true") 36 4, auto;
+  --cursor-blade-pointer: url("https://github.com/net0121/KH/blob/main/keyblade-bicubic%20(1).png?raw=true") 36 4, pointer;
 
   --enemy-w: 128px;
 }
