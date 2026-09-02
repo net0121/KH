@@ -20,6 +20,12 @@
   const prefersReducedMotion =
     window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  // ---------- Spells ----------
+  const SPELLS = ['Firaga', 'Blizzaga', 'Thundaga'];
+  let currentSpellIndex = 0;
+  let spellMenuOpen = false;
+  let activeBarriers = [];
+
   // ---------- DOM ----------
   const arena = document.getElementById("arena");
   const scoreEl = document.getElementById("score");
@@ -38,25 +44,23 @@
   const finalScoreEl = document.getElementById("finalScore");
   const newBestNote = document.getElementById("newBestNote");
 
+  const spellMenuEl = document.getElementById("spellMenu");
+
   // ---------- State ----------
   let score = 0;
   let timeLeft = ROUND_SECONDS;
   let combo = 0;
-  let lastKillAt = 0; // refreshed on every kill; drives the combo countdown
+  let lastKillAt = 0;
   let gameActive = false;
   let countdownTimer = null;
   let comboTickTimer = null;
   let rafId = null;
   let lastFrameTime = 0;
-  let slots = []; // { el, inner, portrait, nameEl, pipEls, hp, enemy, x, y, vx, vy, w, h, moving }
+  let slots = [];
   let muted = localStorage.getItem(MUTED_KEY) === "1";
 
   // ================================================================
-  // AUDIO — each enemy's 3 clicks play their own hit sound, defined as
-  // enemy.hitSounds[0..2] in enemies.js (real hosted MP3s). If an enemy
-  // has no hitSounds, we fall back to a synthesized tone built from its
-  // "sound" config (wave + freq), so the game still works with zero
-  // audio files if you strip them out.
+  // AUDIO
   // ================================================================
   let audioCtx = null;
   const audioElCache = new Map();
@@ -130,7 +134,6 @@
     node.play().catch(() => {});
   }
 
-  // hitsLanded: 1, 2, or 3 (3 = the defeating blow)
   function playHitSound(enemy, hitsLanded) {
     if (enemy.hitSounds && enemy.hitSounds.length) {
       const clip = enemy.hitSounds[Math.min(hitsLanded, enemy.hitSounds.length) - 1];
@@ -145,7 +148,6 @@
     }
     const cfg = enemy.sound || { wave: "square", freq: 240 };
     if (hitsLanded >= HITS_TO_DEFEAT) {
-      // Defeat: a little two-note chord plus an impact crunch
       playSynthTone(cfg, { pitchMult: 1.5, duration: 0.16, volume: 0.19 });
       playSynthTone(cfg, { pitchMult: 1.5 * 1.5, duration: 0.14, volume: 0.13 });
       playNoiseBurst({ duration: 0.07, volume: 0.16 });
@@ -203,8 +205,6 @@
     inner.appendChild(portraitWrap);
     el.appendChild(inner);
 
-    // Name label and HP pips float on top of (not inside) the circular
-    // blob, so the creature itself stays a clean drifting circle.
     const nameEl = document.createElement("div");
     nameEl.className = "enemy-name";
     el.appendChild(nameEl);
@@ -224,7 +224,7 @@
       el, inner, portrait, nameEl, pipEls,
       hp: 0, enemy: null, locked: false,
       x: 0, y: 0, vx: 0, vy: 0, w: 0, h: 0,
-      wanderRate: 0,
+      wanderRate: 0, freezeTimer: 0,
       moving: true
     };
 
@@ -236,8 +236,6 @@
     el.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") activate(e);
     });
-    // Pause a target's drift while it has keyboard focus, so keyboard
-    // users get a fair, stationary shot at it.
     el.addEventListener("focus", () => { slot.moving = false; });
     el.addEventListener("blur", () => { if (!slot.locked) slot.moving = true; });
 
@@ -262,9 +260,6 @@
 
   function randomVelocityFor(slot) {
     const speed = (slot.enemy && slot.enemy.speed) || 60;
-    // Each creature gets its own gentle turning rate (radians/sec) so
-    // the whole arena doesn't drift in lockstep — some wander lazily,
-    // others curve around more restlessly.
     slot.wanderRate = 0.6 + Math.random() * 1.4;
     if (prefersReducedMotion) {
       slot.vx = 0;
@@ -276,9 +271,6 @@
     slot.vy = Math.sin(angle) * speed;
   }
 
-  // Rotates a slot's heading by a small random amount, keeping its speed,
-  // so bounces off the arena walls feel like a living creature glancing
-  // off rather than a billiard ball reflecting at a perfect mirror angle.
   function nudgeHeading(slot, maxRadians) {
     const speed = Math.hypot(slot.vx, slot.vy);
     if (!speed) return;
@@ -294,8 +286,42 @@
   function stepMovement(dt) {
     const arenaW = arena.clientWidth;
     const arenaH = arena.clientHeight;
+    const arenaRect = arena.getBoundingClientRect();
+
+    // Barrier check
+    activeBarriers.forEach(b => {
+      slots.forEach(slot => {
+        if (slot.hp <= 0 || slot.locked) return;
+        const w = slot.w || slot.el.offsetWidth;
+        const h = slot.h || slot.el.offsetHeight;
+        const scx = slot.x + w / 2;
+        const scy = slot.y + h / 2;
+        const dist = Math.hypot(scx - b.x, scy - b.y);
+        
+        if (dist < (w / 2 + b.radius)) {
+          if (b.type === 'firaga') {
+            slot.hp = 1; // Instant kill setup
+            handleHit(slot, { clientX: arenaRect.left + scx, clientY: arenaRect.top + scy });
+          } else if (b.type === 'blizzaga') {
+            if (!slot.freezeTimer || slot.freezeTimer <= 0) {
+              slot.freezeTimer = 5000;
+            }
+          }
+        }
+      });
+    });
 
     for (const slot of slots) {
+      // Freeze condition
+      if (slot.freezeTimer && slot.freezeTimer > 0) {
+        slot.freezeTimer -= dt * 1000;
+        slot.inner.classList.add('is-frozen');
+        continue; 
+      } else {
+        slot.inner.classList.remove('is-frozen');
+        slot.freezeTimer = 0;
+      }
+
       if (!slot.moving || slot.locked) continue;
 
       const w = slot.w || slot.el.offsetWidth;
@@ -303,8 +329,6 @@
       const maxX = Math.max(0, arenaW - w);
       const maxY = Math.max(0, arenaH - h);
 
-      // Continuous, free-form wander: slowly curve the heading every
-      // frame instead of moving in a fixed straight line.
       if (!prefersReducedMotion && slot.wanderRate) {
         nudgeHeading(slot, slot.wanderRate * dt);
       }
@@ -349,6 +373,7 @@
     slot.hp = HITS_TO_DEFEAT;
     slot.locked = false;
     slot.moving = true;
+    slot.freezeTimer = 0;
     slot.portrait.src = enemy.image;
     slot.portrait.alt = enemy.name;
     slot.nameEl.textContent = enemy.name;
@@ -357,6 +382,7 @@
       pip.style.setProperty("--pip-color", enemy.tint);
     });
     slot.inner.classList.remove("is-defeated");
+    slot.inner.classList.remove("is-frozen");
 
     randomPositionFor(slot);
     randomVelocityFor(slot);
@@ -377,9 +403,6 @@
     return tier;
   }
 
-  // Called only when a hit defeats an enemy — regular (non-defeating)
-  // hits still don't touch the combo. Every kill also refills the
-  // 5-second countdown; let it run out and the streak breaks.
   function registerKillForCombo() {
     combo += 1;
     lastKillAt = Date.now();
@@ -476,17 +499,15 @@
     playHitSound(slot.enemy, hitsLanded);
 
     if (slot.hp > 0) {
-      // Regular hit
       const gained = Math.round(HIT_BASE_SCORE * tier.mult);
       score += gained;
       slot.inner.classList.remove("is-hit");
-      void slot.inner.offsetWidth; // restart animation
+      void slot.inner.offsetWidth;
       slot.inner.classList.add("is-hit");
       spawnStarBurst(slot, point.x, point.y, false);
       showFloater(slot, `+${gained}`);
       statusText.textContent = `${slot.enemy.name} staggers — ${slot.hp} hit${slot.hp === 1 ? "" : "s"} left.`;
     } else {
-      // Defeated
       slot.locked = true;
       slot.moving = false;
       const gained = Math.round(slot.enemy.points * tier.mult);
@@ -522,7 +543,7 @@
 
   // ---------- Game lifecycle ----------
   function startGame() {
-    getAudioCtx(); // unlock audio on this user gesture
+    getAudioCtx();
 
     score = 0;
     timeLeft = ROUND_SECONDS;
@@ -530,6 +551,11 @@
     lastKillAt = 0;
     gameActive = true;
     lastFrameTime = 0;
+
+    activeBarriers.forEach(b => { if (b.el.parentNode) b.el.remove(); });
+    activeBarriers = [];
+    spellMenuOpen = false;
+    if (spellMenuEl) spellMenuEl.classList.add('overlay--hidden');
 
     scoreEl.textContent = "0";
     timeEl.textContent = ROUND_SECONDS;
@@ -557,6 +583,11 @@
     clearInterval(comboTickTimer);
     cancelAnimationFrame(rafId);
 
+    activeBarriers.forEach(b => { if (b.el.parentNode) b.el.remove(); });
+    activeBarriers = [];
+    spellMenuOpen = false;
+    if (spellMenuEl) spellMenuEl.classList.add('overlay--hidden');
+
     const best = loadHighScore();
     const isNewBest = score > best;
     if (isNewBest) {
@@ -569,6 +600,118 @@
     newBestNote.classList.toggle("overlay--hidden", !isNewBest);
     endOverlay.classList.remove("overlay--hidden");
   }
+
+  // ---------- Spell Menu Interactions ----------
+  function updateSpellMenuUI() {
+    if (!spellMenuEl) return;
+    const items = spellMenuEl.querySelectorAll('.spell-item');
+    items.forEach((item, index) => {
+      if (index === currentSpellIndex) item.classList.add('selected');
+      else item.classList.remove('selected');
+    });
+  }
+
+  function castSpell(spellName, clientX, clientY) {
+    const rect = arena.getBoundingClientRect();
+    const ax = clientX - rect.left;
+    const ay = clientY - rect.top;
+
+    if (spellName === 'Firaga') {
+      spawnBarrier('firaga', ax, ay, 60);
+    } else if (spellName === 'Blizzaga') {
+      spawnBarrier('blizzaga', ax, ay, 70);
+    } else if (spellName === 'Thundaga') {
+      castThundaga(rect);
+    }
+  }
+
+  function spawnBarrier(type, x, y, radius) {
+    const el = document.createElement('div');
+    el.className = `barrier ${type}-barrier`;
+    
+    const size = radius * 2;
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.left = (x - radius) + 'px';
+    el.style.top = (y - radius) + 'px';
+    
+    arena.appendChild(el);
+    
+    const barrier = { type, x, y, radius, el };
+    activeBarriers.push(barrier);
+    
+    setTimeout(() => {
+      if (el.parentNode) el.remove();
+      activeBarriers = activeBarriers.filter(b => b !== barrier);
+    }, 4000);
+  }
+
+  function castThundaga(arenaRect) {
+    for(let i = 0; i < 10; i++) {
+      setTimeout(() => {
+        if (!gameActive) return;
+        const tx = Math.random() * arenaRect.width;
+        
+        const el = document.createElement('div');
+        el.className = 'thundaga-bolt';
+        el.style.left = (tx - 20) + 'px'; // 40px width bolt
+        el.style.top = '0px';
+        el.style.height = arenaRect.height + 'px';
+        arena.appendChild(el);
+        
+        setTimeout(() => { if (el.parentNode) el.remove(); }, 300);
+        
+        slots.forEach(slot => {
+          if (slot.hp <= 0 || slot.locked) return;
+          const w = slot.w || slot.el.offsetWidth;
+          const h = slot.h || slot.el.offsetHeight;
+          const scx = slot.x + w / 2;
+          const scy = slot.y + h / 2;
+          
+          if (Math.abs(scx - tx) < (w / 2 + 20)) {
+            slot.hp = 1;
+            handleHit(slot, { clientX: arenaRect.left + scx, clientY: arenaRect.top + scy });
+          }
+        });
+      }, Math.random() * 2000);
+    }
+  }
+
+  // --- Input overrides for Spell Menu ---
+  document.addEventListener('contextmenu', (e) => {
+    if (!gameActive) return;
+    e.preventDefault();
+    spellMenuOpen = true;
+    
+    spellMenuEl.style.left = e.clientX + 'px';
+    spellMenuEl.style.top = e.clientY + 'px';
+    spellMenuEl.classList.remove('overlay--hidden');
+    updateSpellMenuUI();
+  });
+
+  document.addEventListener('wheel', (e) => {
+    if (!spellMenuOpen) return;
+    e.preventDefault();
+    if (e.deltaY > 0) {
+      currentSpellIndex = (currentSpellIndex + 1) % SPELLS.length;
+    } else {
+      currentSpellIndex = (currentSpellIndex - 1 + SPELLS.length) % SPELLS.length;
+    }
+    updateSpellMenuUI();
+  }, { passive: false });
+
+  document.addEventListener('click', (e) => {
+    if (!gameActive) return;
+    if (spellMenuOpen) {
+      // Intercept the click on capture phase so it doesn't trigger standard misses
+      e.preventDefault();
+      e.stopPropagation();
+      spellMenuOpen = false;
+      spellMenuEl.classList.add('overlay--hidden');
+      castSpell(SPELLS[currentSpellIndex], e.clientX, e.clientY);
+    }
+  }, true);
+
 
   // ---------- Wire up ----------
   arena.addEventListener("click", handleArenaMiss);
