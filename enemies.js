@@ -44,9 +44,9 @@ const ENEMY_ROSTER = [
     sound: { wave: "triangle", freq: 330 },
     // Mixkit, free & royalty-free, no attribution required.
     hitSounds: [
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_stab_m01.wav", // Magical light aura
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_slash_s01.wav", // Magical light transition
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_slash_m01.wav"  // Magic sparkle touch (defeat)
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_cleave_m01.wav", // Magical light aura
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_cleave_s01.wav", // Magical light transition
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_cleave_single_l01.wav"  // Magic sparkle touch (defeat)
     ]
   },
   {
@@ -57,9 +57,9 @@ const ENEMY_ROSTER = [
     speed: 70,
     sound: { wave: "sine", freq: 440 },
     hitSounds: [
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_stab_m01.wav", // Stardust swish
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_slash_s01.wav", // Magical light sweep
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_slash_m01.wav"  // Magic sparkle poof hit (defeat)
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_cleave_m01.wav", // Stardust swish
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_cleave_s01.wav", // Magical light sweep
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_cleave_single_l01.wav"  // Magic sparkle poof hit (defeat)
     ]
   },
   {
@@ -70,9 +70,9 @@ const ENEMY_ROSTER = [
     speed: 40,
     sound: { wave: "square", freq: 220 },
     hitSounds: [
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_stab_m01.wav", // Weak hit impact
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_slash_s01.wav", // Impact of a blow
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_slash_m01.wav"  // Apocalyptic stomp impact (defeat)
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_cleave_m01.wav", // Weak hit impact
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_cleave_s01.wav", // Impact of a blow
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_cleave_single_l01.wav"  // Apocalyptic stomp impact (defeat)
     ]
   },
   {
@@ -83,9 +83,9 @@ const ENEMY_ROSTER = [
     speed: 85,
     sound: { wave: "sawtooth", freq: 180 },
     hitSounds: [
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_stab_m01.wav", // Small electric glitch
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_slash_s01.wav", // Static electric glitch
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_slash_m01.wav"  // Digital glitch break (defeat)
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_cleave_m01.wav", // Small electric glitch
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_cleave_s01.wav", // Static electric glitch
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_cleave_single_l01.wav"  // Digital glitch break (defeat)
     ]
   },
   {
@@ -96,9 +96,9 @@ const ENEMY_ROSTER = [
     speed: 50,
     sound: { wave: "square", freq: 260 },
     hitSounds: [
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_stab_m01.wav", // Short bass hit
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_slash_s01.wav", // Futuristic bass hit
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_slash_m01.wav"    // Falling hit on gravel (defeat)
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_cleave_m01.wav", // Short bass hit
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_cleave_s01.wav", // Futuristic bass hit
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_cleave_single_l01.wav"    // Falling hit on gravel (defeat)
     ]
   },
   {
@@ -109,9 +109,9 @@ const ENEMY_ROSTER = [
     speed: 95,
     sound: { wave: "sine", freq: 520 },
     hitSounds: [
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_stab_m01.wav", // Magic wand sparkle
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_slash_s01.wav", // Magic spell of light
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_slash_m01.wav"    // Big cinematic impact (defeat)
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_cleave_m01.wav", // Magic wand sparkle
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_cleave_s01.wav", // Magic spell of light
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se_trail_hit_cleave_single_l01.wav"    // Big cinematic impact (defeat)
     ]
   }
 ];
