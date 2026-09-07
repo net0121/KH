@@ -13,6 +13,7 @@
   --magenta: #ff6b9d;
   --cyan: #6bc6ff;
   --gold: #f4c95d;
+  --hp-color: #5cff8f;
   --text: #f5f3ff;
   --text-dim: #9aa0d4;
   --danger: #ff5c5c;
@@ -201,6 +202,19 @@ body {
 }
 .mp-empty { background: var(--danger); }
 
+.hp-fill {
+  background: var(--hp-color);
+  transition: width 0.15s ease, background 0.2s ease;
+}
+.hp-fill.hp-low { background: var(--danger); }
+.hp-fill.hp-flash { animation: hpflash 0.22s ease; }
+
+@keyframes hpflash {
+  0% { filter: brightness(1); }
+  40% { filter: brightness(2.4); }
+  100% { filter: brightness(1); }
+}
+
 .tagline {
   margin: 12px 2px 16px;
   font-size: 16px; /* slightly increased for custom font readability */
@@ -293,6 +307,33 @@ body {
 .enemy:focus-visible .enemy-name {
   opacity: 1;
   transform: translate(-50%, -10px);
+}
+
+.enemy-telegraph {
+  position: absolute;
+  inset: -9px;
+  border-radius: 50%;
+  border: 3px solid var(--atk-color, var(--gold));
+  opacity: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.enemy-telegraph.is-charging {
+  opacity: 0.85;
+  box-shadow: 0 0 16px var(--atk-color, var(--gold));
+  animation: telegraphPulse 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes telegraphPulse {
+  0% { transform: scale(0.93); opacity: 0.45; }
+  100% { transform: scale(1.08); opacity: 0.95; }
+}
+
+.enemy-inner.is-cloaked {
+  opacity: var(--cloak-opacity, 0.3);
+  filter: grayscale(0.5);
+  transition: opacity 0.25s ease, filter 0.25s ease;
 }
 
 .enemy-pips {
@@ -584,6 +625,18 @@ body {
   0% { opacity: 1; transform: scaleX(1); }
   50% { opacity: 1; transform: scaleX(2.5); }
   100% { opacity: 0; transform: scaleX(0.1); }
+}
+
+.enemy-projectile {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 0%, var(--proj-color, var(--danger)) 55%, transparent 82%);
+  box-shadow: 0 0 14px var(--proj-color, var(--danger));
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  z-index: 9;
 }
 
 .enemy-inner.is-frozen {
