@@ -1,105 +1,74 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KH Test</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Key of Light</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
   <div class="cabinet">
-
-    <button class="mute-btn" id="muteBtn" type="button" aria-label="Mute sound" aria-pressed="false">🔊</button>
+    <button id="muteBtn" class="mute-btn" type="button" aria-label="Mute sound">🔊</button>
 
     <header class="hud">
       <div class="hud-stat">
-        <span class="hud-label">Score</span>
-        <span class="hud-value" id="score">0</span>
+        <div class="hud-label">SCORE</div>
+        <div id="score" class="hud-value">0</div>
+        <div class="stat-track"><div id="xpFill" class="stat-fill xp-fill"></div></div>
       </div>
-
-      <div class="hud-stat">
-        <span class="hud-label">Lv. <span id="levelDisplay">1</span></span>
-        <div class="stat-track">
-          <div class="stat-fill xp-fill" id="xpFill"></div>
-        </div>
-      </div>
-
-      <div class="hud-combo">
-        <span class="hud-label">Combo <span id="comboCount">×0</span></span>
-        <div class="combo-track">
-          <div class="combo-fill" id="comboFill"></div>
-        </div>
-      </div>
-
-      <div class="hud-stat">
-        <span class="hud-label">HP</span>
-        <div class="stat-track">
-          <div class="stat-fill hp-fill" id="hpFill"></div>
-        </div>
-      </div>
-
-      <div class="hud-stat">
-        <span class="hud-label">MP</span>
-        <div class="stat-track">
-          <div class="stat-fill mp-fill" id="mpFill"></div>
-        </div>
-      </div>
-
       <div class="hud-stat hud-stat--right">
-        <span class="hud-label">Time</span>
-        <span class="hud-value" id="time">60</span>
+        <div class="hud-label">LVL <span id="levelDisplay">1</span> MP</div>
+        <div class="stat-track"><div id="mpFill" class="stat-fill mp-fill"></div></div>
+        <div class="stat-track" style="margin-top:2px;"><div id="hpFill" class="stat-fill hp-fill"></div></div>
+      </div>
+      <div class="hud-combo">
+        <div id="comboCount">0x COMBO</div>
+        <div class="combo-track"><div id="comboFill" class="combo-fill"></div></div>
+      </div>
+      <div class="hud-stat hud-stat--right">
+        <div class="hud-label">TIME</div>
+        <div id="time" class="hud-value">60</div>
       </div>
     </header>
 
-    <p class="tagline">Wield your keyblade against the Heartless. Three strikes destroy them, and you can stack each kill for a combo. Watch for a glowing ring — it means one is about to counter[...]
-
-    <main class="arena" id="arena">
-      <!-- Enemy slots injected by game.js -->
-    </main>
+    <div id="arena" class="arena"></div>
 
     <footer class="statusbar">
-      <span id="statusText">Strike a Heartless to begin.</span>
-      <div style="display: flex; gap: 16px; align-items: center;">
-        <button id="magicBtn" class="magic-btn" type="button" aria-label="Open Magic Menu">Magic</button>
-        <span class="highscore">Best: <strong id="highscore">0</strong></span>
-      </div>
+      <span id="statusText">Select or press Magic button to cast spells!</span>
+      <span>HIGH SCORE: <strong id="highscore">0</strong></span>
     </footer>
-
   </div>
 
-  <div class="overlay" id="startOverlay">
-    <div class="overlay-card">
-      <h1>idk the name yet</h1>
-      <p>Wield your keyblade against the Heartless. Three strikes destroy them, and you can stack each kill for a combo. Watch for a glowing ring — it means one is about to counterattack, so str[...]
-      <button class="btn" id="startBtn">Begin Trial</button>
-    </div>
-  </div>
-
-  <div class="overlay overlay--hidden" id="endOverlay">
-    <div class="overlay-card">
-      <h1 id="endHeading">Times Up!</h1>
-      <p class="final-score">Final Score: <span id="finalScore">0</span></p>
-      <p id="newBestNote" class="new-best-note overlay--hidden">New best score!</p>
-      <button class="btn" id="restartBtn">Try Again</button>
-    </div>
-  </div>
-
-  <!-- SPELL MENU -->
   <div id="spellMenu" class="spell-menu overlay--hidden">
     <div class="spell-item selected">Fire</div>
     <div class="spell-item">Blizzard</div>
     <div class="spell-item">Thunder</div>
     <div class="spell-item">Cure</div>
     <div class="spell-item">Reflect</div>
+    <div class="spell-item">Magnet</div>
+    <div class="spell-item">Stop</div>
     <div class="spell-item">Aero</div>
-    <div class="spell-item">Meteor</div>
   </div>
 
-  <script src="enemies.js" defer></script>
-  <script src="game.js" defer></script>
+  <div id="startOverlay" class="overlay">
+    <div class="overlay-card">
+      <h1>KEY OF LIGHT</h1>
+      <p>Banish the heartless shadow creatures before time runs out! Click or tap target entities to strike.</p>
+      <button id="startBtn" class="btn" type="button">START HUNT</button>
+    </div>
+  </div>
+
+  <div id="endOverlay" class="overlay overlay--hidden">
+    <div class="overlay-card">
+      <h1 id="endHeading">TIME'S UP!</h1>
+      <p class="final-score">FINAL SCORE: <span id="finalScore">0</span></p>
+      <p id="newBestNote" class="new-best-note overlay--hidden">★ NEW HIGH SCORE! ★</p>
+      <button id="restartBtn" class="btn" type="button">PLAY AGAIN</button>
+    </div>
+  </div>
+
+  <script src="enemies.js"></script>
+  <script src="game.js"></script>
 </body>
 </html>
