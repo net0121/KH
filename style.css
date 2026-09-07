@@ -1,6 +1,6 @@
 @font-face {
   font-family: 'KHMenu';
-  src: url('https://github.com/net0121/KH/blob/3469d05f0c6cd108ec84955af492376f2e080cb1/KHMenu.otf?raw=true') format('opentype');
+  src: url('KHMenu.otf') format('opentype');
   font-weight: normal;
   font-style: normal;
 }
