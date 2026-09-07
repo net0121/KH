@@ -8,18 +8,9 @@
   const HIGH_SCORE_KEY = "keyOfLightHighScore";
   const MUTED_KEY = "keyOfLightMuted";
   const XP_KEY = "keyOfLightXP";
-  const BASE_SPELL_COSTS = [10, 24, 20, 18, 32, 24, 14];
+  const BASE_SPELL_COSTS = [10, 15, 20, 18];
 
   const THUNDER_PNG_URL = "https://github.com/net0121/KH/blob/main/badthundaga.png?raw=true";
-
-  // Enemy attacks
-  const ATTACK_MIN_DELAY_MS = 5000;
-  const ATTACK_MAX_DELAY_MS = 9000;
-  const ATTACK_TELEGRAPH_MS = 900;
-  const ATTACK_MP_DRAIN_MIN = 12;
-  const ATTACK_MP_DRAIN_MAX = 22;
-  const REFLECT_BASE_DURATION_MS = 1100;
-  const REFLECT_DURATION_PER_TIER_MS = 400;
 
   const COMBO_TIERS = [
     { min: 0, mult: 1, color: "var(--magenta)" },
@@ -32,37 +23,21 @@
   const prefersReducedMotion =
     window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  // ---------- Pointer Tracking (mouse + touch + pen) ----------
+  // ---------- Mouse Tracking ----------
   let mouseX = 0;
   let mouseY = 0;
 
-  function updatePointerPosition(e) {
+  document.addEventListener("mousemove", (e) => {
     const rect = arena.getBoundingClientRect();
     mouseX = e.clientX - rect.left;
     mouseY = e.clientY - rect.top;
-  }
-
-  // Pointer events unify mouse, touch, and pen — mousemove alone never
-  // fires on touch, which left cursor-targeted spells stuck at (0,0) on mobile.
-  document.addEventListener("pointermove", updatePointerPosition);
-  document.addEventListener("pointerdown", updatePointerPosition);
-
-  function resetPointerToArenaCenter() {
-    mouseX = arena.clientWidth / 2;
-    mouseY = arena.clientHeight / 2;
-  }
+  });
 
   // ---------- Spells & Magic Tiers ----------
-  const BASE_SPELLS = ['Fire', 'Blizzard', 'Thunder', 'Reflect', 'Stop', 'Magnet', 'Cure'];
+  const BASE_SPELLS = ['Fire', 'Blizzard', 'Thunder', 'Cure'];
   let currentSpellIndex = 0;
   let spellMenuOpen = false;
   let activeBarriers = [];
-
-  // Enemy attack / Reflect state
-  let attackTimer = null;
-  let reflectActive = false;
-  let reflectTimeout = null;
-  let reflectShieldEl = null;
 
   // ---------- DOM ----------
   const arena = document.getElementById("arena");
@@ -86,6 +61,7 @@
   const levelDisplayEl = document.getElementById("levelDisplay");
   const xpFillEl = document.getElementById("xpFill");
   const mpFillEl = document.getElementById("mpFill");
+  const hpFillEl = document.getElementById("hpFill");
 
   // ---------- State ----------
   let score = 0;
@@ -105,6 +81,9 @@
   let playerLevel = 1;
   let maxMp = 100;
   let currentMp = 100;
+  let maxHp = 100;
+  let currentHp = 100;
+  let activeProjectiles = [];
 
   function getMagicTier() {
     if (playerLevel >= 10) return 3; // -aga
@@ -118,9 +97,6 @@
       ['Fire', 'Fira', 'Firaga'],
       ['Blizzard', 'Blizzara', 'Blizzaga'],
       ['Thunder', 'Thundara', 'Thundaga'],
-      ['Reflect', 'Reflera', 'Reflega'],
-      ['Stop', 'Stopra', 'Stopga'],
-      ['Magnet', 'Magnera', 'Magnega'],
       ['Cure', 'Cura', 'Curaga']
     ];
     return suffixes[index][tier - 1];
@@ -159,11 +135,42 @@
     return false;
   }
 
-  function damageMp(amount) {
-    currentMp = Math.max(0, currentMp - amount);
-    mpFillEl.style.width = `${(currentMp / maxMp) * 100}%`;
-    mpFillEl.classList.add("mp-empty");
-    setTimeout(() => mpFillEl.classList.remove("mp-empty"), 220);
+  function updateHpFill() {
+    const pct = Math.max(0, Math.min(100, (currentHp / maxHp) * 100));
+    hpFillEl.style.width = `${pct}%`;
+    hpFillEl.classList.toggle("hp-low", pct <= 25);
+  }
+
+  function damagePlayer(amount) {
+    if (!gameActive) return;
+    currentHp = Math.max(0, currentHp - amount);
+    updateHpFill();
+    hpFillEl.classList.remove("hp-flash");
+    void hpFillEl.offsetWidth;
+    hpFillEl.classList.add("hp-flash");
+    playSynthTone({ wave: "square", freq: 160 }, { pitchMult: 1, duration: 0.18, volume: 0.16, sweep: 0.4 });
+    if (currentHp <= 0) {
+      endGame("Your Heart Fell...");
+    }
+  }
+
+  function healPlayer(amount) {
+    currentHp = Math.min(maxHp, currentHp + amount);
+    updateHpFill();
+  }
+
+  // A floater anchored to arena coordinates rather than a specific enemy slot —
+  // used for player-facing feedback like Cure heals or a landed projectile hit.
+  function showArenaFloater(x, y, text, color) {
+    const f = document.createElement("div");
+    f.className = "floater";
+    f.textContent = text;
+    f.style.left = `${x}px`;
+    f.style.top = `${y}px`;
+    f.style.transform = "translateX(-50%)";
+    if (color) f.style.color = color;
+    arena.appendChild(f);
+    setTimeout(() => f.remove(), 700);
   }
 
   // ================================================================
@@ -287,16 +294,6 @@
       arena.appendChild(slot.el);
       slots.push(slot);
     }
-    ensureReflectShield();
-  }
-
-  function ensureReflectShield() {
-    if (!reflectShieldEl) {
-      reflectShieldEl = document.createElement("div");
-      reflectShieldEl.className = "reflect-shield";
-      reflectShieldEl.id = "reflectShield";
-    }
-    arena.appendChild(reflectShieldEl);
   }
 
   function createSlot() {
@@ -326,6 +323,10 @@
     nameEl.className = "enemy-name";
     el.appendChild(nameEl);
 
+    const telegraphEl = document.createElement("div");
+    telegraphEl.className = "enemy-telegraph";
+    el.appendChild(telegraphEl);
+
     const pips = document.createElement("div");
     pips.className = "enemy-pips";
     const pipEls = [];
@@ -338,11 +339,14 @@
     el.appendChild(pips);
 
     const slot = {
-      el, inner, portrait, nameEl, pipEls,
+      el, inner, portrait, nameEl, pipEls, telegraphEl,
       hp: 0, enemy: null, locked: false,
       x: 0, y: 0, vx: 0, vy: 0, w: 0, h: 0,
       wanderRate: 0, freezeTimer: 0,
-      moving: true
+      moving: true,
+      attackTimer: Infinity, attacking: false, telegraphTimer: 0,
+      preAttackVx: 0, preAttackVy: 0,
+      cloakTimer: 0, speedBoostTimer: 0
     };
 
     const activate = (e) => {
@@ -361,6 +365,12 @@
 
   function randomEnemy() {
     return ENEMY_ROSTER[Math.floor(Math.random() * ENEMY_ROSTER.length)];
+  }
+
+  function randomAttackInterval(enemy) {
+    if (!enemy || !enemy.attack) return Infinity;
+    const { cooldownMin = 5000, cooldownMax = 9000 } = enemy.attack;
+    return cooldownMin + Math.random() * (cooldownMax - cooldownMin);
   }
 
   // ---------- Movement ----------
@@ -425,8 +435,7 @@
             handleHit(slot, { clientX: arenaRect.left + scx, clientY: arenaRect.top + scy });
           } else if (b.type === 'blizzaga') {
             if (!slot.freezeTimer || slot.freezeTimer <= 0) {
-              slot.freezeTimer = 3000 + (b.tier * 2000);
-              applyBlizzardDamage(slot, { clientX: arenaRect.left + scx, clientY: arenaRect.top + scy });
+              slot.freezeTimer = 3000 + (b.tier * 2000); 
             }
           }
         }
@@ -472,7 +481,190 @@
     const dt = lastFrameTime ? Math.min(0.05, (now - lastFrameTime) / 1000) : 0;
     lastFrameTime = now;
     stepMovement(dt);
+    stepEnemyAttacks(dt);
     rafId = requestAnimationFrame(animationLoop);
+  }
+
+  // ---------- Enemy attacks ----------
+  function cancelAttackWindup(slot, { restoreVelocity = true } = {}) {
+    slot.attacking = false;
+    slot.telegraphTimer = 0;
+    slot.telegraphEl.classList.remove("is-charging");
+    if (restoreVelocity) {
+      slot.vx = slot.preAttackVx;
+      slot.vy = slot.preAttackVy;
+    }
+  }
+
+  function stepEnemyAttacks(dt) {
+    for (const slot of slots) {
+      if (!slot.enemy || slot.hp <= 0 || slot.locked) continue;
+
+      // Cloak and speed-boost effects wind down regardless of attack state.
+      if (slot.cloakTimer > 0) {
+        slot.cloakTimer -= dt * 1000;
+        if (slot.cloakTimer <= 0) {
+          slot.cloakTimer = 0;
+          slot.inner.classList.remove("is-cloaked");
+        }
+      }
+      if (slot.speedBoostTimer > 0) {
+        slot.speedBoostTimer -= dt * 1000;
+        if (slot.speedBoostTimer <= 0) {
+          slot.speedBoostTimer = 0;
+          randomVelocityFor(slot);
+        }
+      }
+
+      if (!slot.enemy.attack || slot.freezeTimer > 0) continue;
+
+      if (slot.attacking) {
+        slot.telegraphTimer -= dt * 1000;
+        if (slot.telegraphTimer <= 0) {
+          slot.attacking = false;
+          slot.telegraphEl.classList.remove("is-charging");
+          executeEnemyAttack(slot);
+          slot.attackTimer = randomAttackInterval(slot.enemy);
+        }
+      } else {
+        slot.attackTimer -= dt * 1000;
+        if (slot.attackTimer <= 0) {
+          const atk = slot.enemy.attack;
+          slot.attacking = true;
+          slot.telegraphTimer = atk.telegraph;
+          slot.telegraphEl.style.setProperty("--atk-color", atk.color);
+          slot.telegraphEl.classList.add("is-charging");
+          // Enemy visibly slows to "charge" its attack, giving the player
+          // a fair window to notice and interrupt it.
+          slot.preAttackVx = slot.vx;
+          slot.preAttackVy = slot.vy;
+          slot.vx *= 0.15;
+          slot.vy *= 0.15;
+          playSynthTone({ wave: "triangle", freq: 700 }, { pitchMult: 1, duration: 0.12, volume: 0.07, sweep: 1.3 });
+        }
+      }
+    }
+  }
+
+  function fireProjectile(slot, atk) {
+    const w = slot.w || slot.el.offsetWidth;
+    const h = slot.h || slot.el.offsetHeight;
+    const startX = slot.x + w / 2;
+    const startY = slot.y + h / 2;
+    const targetX = mouseX;
+    const targetY = mouseY;
+
+    const el = document.createElement("div");
+    el.className = "enemy-projectile";
+    el.style.setProperty("--proj-color", atk.color || "var(--danger)");
+    el.style.left = `${startX}px`;
+    el.style.top = `${startY}px`;
+    arena.appendChild(el);
+
+    const speed = 480; // px/second
+    const dist = Math.hypot(targetX - startX, targetY - startY);
+    const duration = Math.max(220, (dist / speed) * 1000);
+
+    requestAnimationFrame(() => {
+      el.style.transition = `left ${duration}ms linear, top ${duration}ms linear`;
+      el.style.left = `${targetX}px`;
+      el.style.top = `${targetY}px`;
+    });
+
+    const projectile = { el };
+    activeProjectiles.push(projectile);
+
+    const timeoutId = setTimeout(() => {
+      if (el.parentNode) el.remove();
+      activeProjectiles = activeProjectiles.filter((p) => p !== projectile);
+      if (!gameActive) return;
+
+      const hitRadius = 42;
+      const playerDist = Math.hypot(mouseX - targetX, mouseY - targetY);
+      if (playerDist < hitRadius) {
+        damagePlayer(atk.power);
+        showArenaFloater(targetX, targetY, `-${atk.power} HP`, "var(--danger)");
+      } else {
+        showArenaFloater(targetX, targetY, "Dodged!", "var(--cyan)");
+      }
+    }, duration);
+
+    projectile.timeoutId = timeoutId;
+  }
+
+  function executeEnemyAttack(slot) {
+    const atk = slot.enemy.attack;
+    if (!atk) return;
+
+    switch (atk.type) {
+      case "cloak": {
+        slot.inner.classList.add("is-cloaked");
+        slot.inner.style.setProperty("--cloak-opacity", atk.power);
+        slot.cloakTimer = 2800;
+        showFloater(slot, atk.name);
+        playNoiseBurst({ duration: 0.12, volume: 0.1 });
+        statusText.textContent = `${slot.enemy.name} melts into shadow!`;
+        break;
+      }
+      case "mp-drain": {
+        const amt = atk.power;
+        currentMp = Math.max(0, currentMp - amt);
+        mpFillEl.style.width = `${(currentMp / maxMp) * 100}%`;
+        mpFillEl.classList.add("mp-empty");
+        setTimeout(() => mpFillEl.classList.remove("mp-empty"), 300);
+        showFloater(slot, `-${amt} MP`);
+        statusText.textContent = `${slot.enemy.name} siphons your mana!`;
+        playSynthTone({ wave: "sine", freq: 200 }, { pitchMult: 0.6, duration: 0.3, volume: 0.15, sweep: 0.5 });
+        break;
+      }
+      case "combo-break": {
+        if (combo > 0) {
+          showFloater(slot, "Combo Broken!");
+          breakCombo(`${slot.enemy.name} lets out a wail — combo shattered!`);
+        } else {
+          showFloater(slot, atk.name);
+        }
+        playNoiseBurst({ duration: 0.18, volume: 0.15 });
+        break;
+      }
+      case "dodge": {
+        randomPositionFor(slot);
+        randomVelocityFor(slot);
+        slot.vx *= atk.power;
+        slot.vy *= atk.power;
+        slot.speedBoostTimer = 2000;
+        showFloater(slot, atk.name);
+        playSynthTone({ wave: "sawtooth", freq: 600 }, { pitchMult: 1, duration: 0.1, volume: 0.12, sweep: 0.3 });
+        statusText.textContent = `${slot.enemy.name} warps away!`;
+        break;
+      }
+      case "time-steal": {
+        timeLeft = Math.max(0, timeLeft - atk.power);
+        timeEl.textContent = timeLeft;
+        timeEl.classList.toggle("time-low", timeLeft <= 10);
+        showFloater(slot, `-${atk.power}s`);
+        statusText.textContent = `${slot.enemy.name} burns away precious seconds!`;
+        playSynthTone({ wave: "square", freq: 150 }, { pitchMult: 1, duration: 0.25, volume: 0.15, sweep: 0.4 });
+        if (timeLeft <= 0) endGame();
+        break;
+      }
+      case "score-steal": {
+        const stolen = Math.min(score, atk.power);
+        score -= stolen;
+        scoreEl.textContent = score;
+        showFloater(slot, `-${stolen} pts`);
+        statusText.textContent = `${slot.enemy.name} siphons your score into the void!`;
+        playSynthTone({ wave: "sine", freq: 500 }, { pitchMult: 1, duration: 0.2, volume: 0.12, sweep: 0.4 });
+        break;
+      }
+      case "projectile": {
+        showFloater(slot, atk.name);
+        statusText.textContent = `${slot.enemy.name} fires ${atk.name} — dodge it!`;
+        playSynthTone({ wave: "sawtooth", freq: 380 }, { pitchMult: 1, duration: 0.16, volume: 0.14, sweep: 0.55 });
+        fireProjectile(slot, atk);
+        break;
+      }
+    }
   }
 
   function handleResize() {
@@ -504,6 +696,13 @@
     });
     slot.inner.classList.remove("is-defeated");
     slot.inner.classList.remove("is-frozen");
+    slot.inner.classList.remove("is-cloaked");
+    slot.telegraphEl.classList.remove("is-charging");
+    slot.attacking = false;
+    slot.telegraphTimer = 0;
+    slot.cloakTimer = 0;
+    slot.speedBoostTimer = 0;
+    slot.attackTimer = randomAttackInterval(enemy);
 
     randomPositionFor(slot);
     randomVelocityFor(slot);
@@ -552,116 +751,6 @@
     if (elapsed >= COMBO_WINDOW_MS) {
       breakCombo("No kill in time — combo broken.");
     }
-  }
-
-  // ---------- Enemy attacks ----------
-  function scheduleNextAttack() {
-    clearTimeout(attackTimer);
-    if (!gameActive) return;
-    const delay = ATTACK_MIN_DELAY_MS + Math.random() * (ATTACK_MAX_DELAY_MS - ATTACK_MIN_DELAY_MS);
-    attackTimer = setTimeout(triggerEnemyAttack, delay);
-  }
-
-  function triggerEnemyAttack() {
-    if (!gameActive) return;
-    const candidates = slots.filter((s) => s.hp > 0 && !s.locked);
-    if (!candidates.length) {
-      scheduleNextAttack();
-      return;
-    }
-    const slot = candidates[Math.floor(Math.random() * candidates.length)];
-    const kind = Math.random() < 0.5 ? "shockwave" : "bolt";
-    telegraphAttack(slot, kind);
-  }
-
-  function telegraphAttack(slot, kind) {
-    const enemyAtStart = slot.enemy;
-    slot.inner.classList.add("is-charging");
-    statusText.textContent = `${enemyAtStart.name} is winding up an attack!`;
-    playSynthTone({ wave: "square", freq: 180 }, { duration: 0.18, volume: 0.12, sweep: 1.15 });
-
-    setTimeout(() => {
-      slot.inner.classList.remove("is-charging");
-      if (gameActive && slot.enemy === enemyAtStart && slot.hp > 0) {
-        resolveAttack(slot, kind);
-      }
-      scheduleNextAttack();
-    }, ATTACK_TELEGRAPH_MS);
-  }
-
-  function resolveAttack(slot, kind) {
-    playAttackVisual(slot, kind);
-
-    if (reflectActive) {
-      reflectAttack(slot);
-      return;
-    }
-
-    shakeArena();
-    if (combo > 0) {
-      breakCombo(`${slot.enemy.name}'s attack broke your combo!`);
-    } else {
-      const drained = ATTACK_MP_DRAIN_MIN + Math.floor(Math.random() * (ATTACK_MP_DRAIN_MAX - ATTACK_MP_DRAIN_MIN));
-      damageMp(drained);
-      statusText.textContent = `${slot.enemy.name}'s attack drained ${drained} MP!`;
-    }
-  }
-
-  function reflectAttack(slot) {
-    showReflectFlash();
-    statusText.textContent = `Reflected! ${slot.enemy.name} takes the blow instead.`;
-    const rect = slot.el.getBoundingClientRect();
-    handleHit(slot, { clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 });
-  }
-
-  function playAttackVisual(slot, kind) {
-    const cx = slot.x + (slot.w || slot.el.offsetWidth) / 2;
-    const cy = slot.y + (slot.h || slot.el.offsetHeight) / 2;
-    const el = document.createElement("div");
-    if (kind === "shockwave") {
-      el.className = "enemy-shockwave";
-      el.style.setProperty("--ring-color", slot.enemy.tint);
-    } else {
-      el.className = "enemy-boltattack";
-      el.style.setProperty("--bolt-color", slot.enemy.tint);
-    }
-    el.style.left = `${cx}px`;
-    el.style.top = `${cy}px`;
-    arena.appendChild(el);
-    setTimeout(() => el.remove(), 500);
-  }
-
-  function shakeArena() {
-    arena.classList.remove("arena-shake");
-    void arena.offsetWidth;
-    arena.classList.add("arena-shake");
-  }
-
-  function showReflectFlash() {
-    playSynthTone({ wave: "sine", freq: 660 }, { duration: 0.16, volume: 0.16, sweep: 1.3 });
-    const flash = document.createElement("div");
-    flash.className = "reflect-flash";
-    arena.appendChild(flash);
-    setTimeout(() => flash.remove(), 400);
-  }
-
-  function activateReflect(duration) {
-    reflectActive = true;
-    ensureReflectShield();
-    reflectShieldEl.classList.add("is-active");
-    clearTimeout(reflectTimeout);
-    reflectTimeout = setTimeout(() => {
-      reflectActive = false;
-      if (reflectShieldEl) reflectShieldEl.classList.remove("is-active");
-    }, duration);
-  }
-
-  function resetAttacksAndReflect() {
-    clearTimeout(attackTimer);
-    clearTimeout(reflectTimeout);
-    reflectActive = false;
-    if (reflectShieldEl) reflectShieldEl.classList.remove("is-active");
-    slots.forEach((s) => s.inner.classList.remove("is-charging"));
   }
 
   // ---------- Hit effects ----------
@@ -717,6 +806,11 @@
   function handleHit(slot, evt) {
     if (!gameActive || slot.locked || slot.hp <= 0) return;
 
+    if (slot.attacking) {
+      cancelAttackWindup(slot);
+      slot.attackTimer = randomAttackInterval(slot.enemy);
+    }
+
     const willKill = slot.hp <= 1;
     if (willKill) registerKillForCombo();
     const tier = currentTier();
@@ -763,15 +857,6 @@
     scoreEl.textContent = score;
   }
 
-  // Blizzard chips 2 HP off contact (on top of its freeze) instead of the
-  // single-tap chip damage other effects apply — landed once per freeze trigger.
-  function applyBlizzardDamage(slot, evt) {
-    handleHit(slot, evt);
-    if (gameActive && slot.hp > 0 && !slot.locked) {
-      handleHit(slot, evt);
-    }
-  }
-
   function handleArenaMiss(e) {
     if (!gameActive) return;
     if (e.target === arena) {
@@ -802,9 +887,13 @@
 
     activeBarriers.forEach(b => { if (b.el.parentNode) b.el.remove(); });
     activeBarriers = [];
+    activeProjectiles.forEach(p => {
+      clearTimeout(p.timeoutId);
+      if (p.el.parentNode) p.el.remove();
+    });
+    activeProjectiles = [];
     spellMenuOpen = false;
     if (spellMenuEl) spellMenuEl.classList.add('overlay--hidden');
-    resetAttacksAndReflect();
 
     scoreEl.textContent = "0";
     timeEl.textContent = ROUND_SECONDS;
@@ -814,11 +903,13 @@
 
     updatePlayerStats();
     currentMp = maxMp;
+    maxHp = 100;
+    currentHp = maxHp;
+    updateHpFill();
     updatePlayerStats();
 
     buildArena();
     slots.forEach((slot) => spawnEnemy(slot, false));
-    resetPointerToArenaCenter();
 
     startOverlay.classList.add("overlay--hidden");
     endOverlay.classList.add("overlay--hidden");
@@ -829,10 +920,10 @@
     countdownTimer = setInterval(tickCountdown, 1000);
     comboTickTimer = setInterval(tickComboDecay, 100);
     rafId = requestAnimationFrame(animationLoop);
-    scheduleNextAttack();
   }
 
-  function endGame() {
+  function endGame(reason) {
+    if (!gameActive) return;
     gameActive = false;
     clearInterval(countdownTimer);
     clearInterval(comboTickTimer);
@@ -840,9 +931,13 @@
 
     activeBarriers.forEach(b => { if (b.el.parentNode) b.el.remove(); });
     activeBarriers = [];
+    activeProjectiles.forEach(p => {
+      clearTimeout(p.timeoutId);
+      if (p.el.parentNode) p.el.remove();
+    });
+    activeProjectiles = [];
     spellMenuOpen = false;
     if (spellMenuEl) spellMenuEl.classList.add('overlay--hidden');
-    resetAttacksAndReflect();
 
     const best = loadHighScore();
     const isNewBest = score > best;
@@ -851,7 +946,7 @@
       highscoreEl.textContent = score;
     }
 
-    endHeading.textContent = "Times Up";
+    endHeading.textContent = reason || "Time's Up";
     finalScoreEl.textContent = score;
     newBestNote.classList.toggle("overlay--hidden", !isNewBest);
     endOverlay.classList.remove("overlay--hidden");
@@ -885,71 +980,17 @@
       const rect = arena.getBoundingClientRect();
       castThunder(rect, magicTier);
     } else if (spellIndex === 3) {
-      const duration = REFLECT_BASE_DURATION_MS + (magicTier - 1) * REFLECT_DURATION_PER_TIER_MS;
-      activateReflect(duration);
-      statusText.textContent = "Reflect raised!";
-    } else if (spellIndex === 4) {
-      castStop(magicTier);
-    } else if (spellIndex === 5) {
-      castMagnet(magicTier);
-    } else if (spellIndex === 6) {
-      castCure();
+      castCure(magicTier);
     }
   }
 
-  function castStop(tier) {
-    const duration = 1200 + tier * 500;
-    const targets = slots.filter((s) => s.hp > 0 && !s.locked);
-    if (!targets.length) {
-      statusText.textContent = "No Heartless to freeze.";
-      return;
-    }
-    targets.forEach((slot) => {
-      slot.freezeTimer = Math.max(slot.freezeTimer || 0, duration);
-      const rect = slot.el.getBoundingClientRect();
-      const evt = { clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 };
-      handleHit(slot, evt);
-      handleHit(slot, evt);
-    });
-    statusText.textContent = "Stop! Every Heartless freezes and takes 2 hits.";
-  }
-
-  function castMagnet(tier) {
-    const targets = slots.filter((s) => s.hp > 0 && !s.locked);
-    if (!targets.length) {
-      statusText.textContent = "No Heartless to pull in.";
-      return;
-    }
-    const cx = arena.clientWidth / 2;
-    const cy = arena.clientHeight / 2;
-    const pullMs = 450;
-    const clusterRadius = 10 + tier * 6;
-
-    targets.forEach((slot, i) => {
-      slot.moving = false;
-      const w = slot.w || slot.el.offsetWidth;
-      const h = slot.h || slot.el.offsetHeight;
-      const angle = (Math.PI * 2 * i) / targets.length;
-      slot.el.style.transition = `transform ${pullMs}ms ease-in`;
-      slot.x = cx - w / 2 + Math.cos(angle) * clusterRadius;
-      slot.y = cy - h / 2 + Math.sin(angle) * clusterRadius;
-      placeSlot(slot);
-    });
-
-    statusText.textContent = "Magnet! Heartless are pulled together — strike fast!";
-
-    setTimeout(() => {
-      targets.forEach((slot) => {
-        slot.el.style.transition = "";
-        if (slot.hp > 0 && !slot.locked) slot.moving = true;
-      });
-    }, pullMs + 40);
-  }
-
-  function castCure() {
-    currentMp = maxMp;
-    updatePlayerStats();
-    statusText.textContent = "Cure! MP fully restored.";
+  function castCure(tier) {
+    const healAmt = 25 + tier * 15;
+    healPlayer(healAmt);
+    showArenaFloater(mouseX, mouseY, `+${healAmt} HP`, "var(--hp-color)");
+    statusText.textContent = `${getSpellName(3)} mends your heart.`;
+    playSynthTone({ wave: "sine", freq: 620 }, { pitchMult: 1, duration: 0.28, volume: 0.16, sweep: 1.35 });
+    playSynthTone({ wave: "sine", freq: 620 }, { pitchMult: 1.5, duration: 0.24, volume: 0.1, sweep: 1.25 });
   }
 
   function spawnBarrier(type, radius, tier) {
@@ -1122,7 +1163,7 @@
     loadHighScore();
     buildArena();
     slots.forEach((slot) => spawnEnemy(slot, false));
-    resetPointerToArenaCenter();
     updatePlayerStats();
+    updateHpFill();
   });
 })();
