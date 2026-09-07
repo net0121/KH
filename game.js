@@ -483,7 +483,7 @@
           }
         }
 
-        // Magnet vortex pull towards fixed center
+        // Magnet pull towards fixed center
         if (b.type === 'magnega') {
           if (dist < 420) {
             const pullSpeed = (420 - dist) * 1.8;
@@ -788,11 +788,11 @@
 
     switch (spellIndex) {
       case 0: // Fire
-        spawnBarrier('firaga', 60 + tier * 23, tier);
-        playSynthTone({ wave: "sawtooth", freq: 280 }, { pitchMult: 1.2, duration: 0.25, volume: 0.18, sweep: 0.6 });
+        spawnBarrier('firaga', 60 + tier * 27, tier);
+        playSynthTone({ wave: "sawtooth", freq: 280 }, { pitchMult: 1.2, duration: 0.5, volume: 0.18, sweep: 0.6 });
         break;
       case 1: // Blizzard
-        spawnBarrier('blizzaga', 80 + tier * 25, tier);
+        spawnBarrier('blizzaga', 80 + tier * 29, tier);
         playSynthTone({ wave: "sine", freq: 600 }, { pitchMult: 1.4, duration: 0.3, volume: 0.15, sweep: 0.8 });
         break;
       case 2: // Thunder
@@ -814,7 +814,7 @@
         break;
       case 7: // Aero
         spawnBarrier('aeroga', 75 + tier * 20, tier, 4000);
-        playSynthTone({ wave: "sawtooth", freq: 340 }, { pitchMult: 1.1, duration: 0.3, volume: 0.16, sweep: 1.5 });
+        playSynthTone({ wave: "sawtooth", freq: 340 }, { pitchMult: 1.1, duration: 0.6, volume: 0.16, sweep: 1.5 });
         break;
     }
   }
@@ -830,7 +830,7 @@
         const bolt = document.createElement('div');
         bolt.className = 'thundaga-bolt';
         const w = slot.w || 100;
-        bolt.style.width = '28px';
+        bolt.style.width = '44px';
         bolt.style.height = '100%';
         bolt.style.left = (slot.x + w / 2 - 14) + 'px';
         bolt.style.top = '0';
