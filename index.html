@@ -36,6 +36,13 @@
       </div>
 
       <div class="hud-stat">
+        <span class="hud-label">HP</span>
+        <div class="stat-track">
+          <div class="stat-fill hp-fill" id="hpFill"></div>
+        </div>
+      </div>
+
+      <div class="hud-stat">
         <span class="hud-label">MP</span>
         <div class="stat-track">
           <div class="stat-fill mp-fill" id="mpFill"></div>
@@ -48,7 +55,7 @@
       </div>
     </header>
 
-    <p class="tagline">Wield your keyblade against the Heartless. Three strikes destroy them, and you can stack each kill for a combo.</p>
+    <p class="tagline">Wield your keyblade against the Heartless. Three strikes destroy them, and you can stack each kill for a combo. Watch for a glowing ring — it means one is about to counterattack, so strike it fast to interrupt.</p>
 
     <main class="arena" id="arena">
       <!-- Enemy slots injected by game.js -->
@@ -67,7 +74,7 @@
   <div class="overlay" id="startOverlay">
     <div class="overlay-card">
       <h1>idk the name yet</h1>
-      <p>Wield your keyblade against the Heartless. Three strikes destroy them, and you can stack each kill for a combo.</p>
+      <p>Wield your keyblade against the Heartless. Three strikes destroy them, and you can stack each kill for a combo. Watch for a glowing ring — it means one is about to counterattack, so strike it fast to interrupt.</p>
       <button class="btn" id="startBtn">Begin Trial</button>
     </div>
   </div>
@@ -86,9 +93,6 @@
     <div class="spell-item selected">Fire</div>
     <div class="spell-item">Blizzard</div>
     <div class="spell-item">Thunder</div>
-    <div class="spell-item">Reflect</div>
-    <div class="spell-item">Stop</div>
-    <div class="spell-item">Magnet</div>
     <div class="spell-item">Cure</div>
   </div>
 
