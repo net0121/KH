@@ -27,6 +27,34 @@
                entry for your own link, or a local file like
                "assets/hit-goblin-1.mp3", any time — or delete the array
                to fall back to the synth tone.
+    attack   - Optional. Gives the enemy a periodic special attack while
+               it's alive. It winds up with a glowing telegraph ring (and
+               visibly slows down) so the player has a fair window to
+               interrupt it by landing a hit — hitting the enemy during
+               the windup cancels the attack outright.
+                 name        - shown in floaters/status text
+                 type        - one of:
+                     "cloak"       fades the enemy to low opacity, making
+                                   it harder to spot for a few seconds
+                     "mp-drain"    instantly drains a chunk of player MP
+                     "combo-break" shatters the player's current combo
+                     "dodge"       warps to a new spot and bolts away at
+                                   a speed multiplier
+                     "time-steal"  knocks a few seconds off the clock
+                     "score-steal" siphons points straight off the score
+                     "projectile"  launches a homing bolt at wherever your
+                                   cursor is when it fires. If your cursor
+                                   is still near that spot when the bolt
+                                   arrives, it hits and damages your HP —
+                                   move away in time and it whiffs.
+                 color       - CSS color for the telegraph ring/glow (and,
+                               for "projectile", the bolt itself)
+                 telegraph   - windup duration in ms before the attack fires
+                 cooldownMin/cooldownMax - random range in ms between attacks
+                 power       - effect magnitude (MP amount / speed multiplier /
+                               seconds stolen / points stolen / HP damage —
+                               ignored by "cloak" and "combo-break")
+               Delete the "attack" object on any enemy to make it passive.
 
   Replace the "image" value with your own link, e.g.:
     image: "https://example.com/my-shadow-creature.png"
@@ -47,7 +75,16 @@ const ENEMY_ROSTER = [
       "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2311.wav", // Magical light aura
       "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2312.wav", // Magical light transition
       "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2313.wav"  // Magic sparkle touch (defeat)
-    ]
+    ],
+    attack: {
+      name: "Shadowmeld",
+      type: "cloak",
+      color: "#ff6b9d",
+      telegraph: 900,
+      cooldownMin: 5000,
+      cooldownMax: 8500,
+      power: 0.3 // opacity it fades down to
+    }
   },
   {
     name: "Gloom Wisp",
@@ -60,7 +97,16 @@ const ENEMY_ROSTER = [
       "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2311.wav", // Stardust swish
       "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2312.wav", // Magical light sweep
       "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2314.wav"  // Magic sparkle poof hit (defeat)
-    ]
+    ],
+    attack: {
+      name: "Mana Leech",
+      type: "mp-drain",
+      color: "#6bc6ff",
+      telegraph: 800,
+      cooldownMin: 4500,
+      cooldownMax: 8000,
+      power: 18 // MP drained
+    }
   },
   {
     name: "Ashen Wraith",
@@ -73,7 +119,15 @@ const ENEMY_ROSTER = [
       "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2311.wav", // Weak hit impact
       "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2312.wav", // Impact of a blow
       "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2313.wav"  // Apocalyptic stomp impact (defeat)
-    ]
+    ],
+    attack: {
+      name: "Ashen Wail",
+      type: "combo-break",
+      color: "#f4c95d",
+      telegraph: 1100,
+      cooldownMin: 6000,
+      cooldownMax: 10000
+    }
   },
   {
     name: "Static Nightling",
@@ -86,7 +140,16 @@ const ENEMY_ROSTER = [
       "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2311.wav", // Small electric glitch
       "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2312.wav", // Static electric glitch
       "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2314.wav"  // Digital glitch break (defeat)
-    ]
+    ],
+    attack: {
+      name: "Glitch Warp",
+      type: "dodge",
+      color: "#b98bff",
+      telegraph: 500,
+      cooldownMin: 4000,
+      cooldownMax: 7000,
+      power: 2.2 // speed multiplier after warping
+    }
   },
   {
     name: "Ember Phantom",
@@ -99,7 +162,16 @@ const ENEMY_ROSTER = [
       "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2311.wav", // Short bass hit
       "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2312.wav", // Futuristic bass hit
       "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2313.wav"    // Falling hit on gravel (defeat)
-    ]
+    ],
+    attack: {
+      name: "Ember Surge",
+      type: "time-steal",
+      color: "#ff9770",
+      telegraph: 1000,
+      cooldownMin: 7000,
+      cooldownMax: 11000,
+      power: 3 // seconds stolen off the clock
+    }
   },
   {
     name: "Void Glimmer",
@@ -112,7 +184,38 @@ const ENEMY_ROSTER = [
       "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2311.wav", // Magic wand sparkle
       "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2312.wav", // Magic spell of light
       "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2314.wav"    // Big cinematic impact (defeat)
-    ]
+    ],
+    attack: {
+      name: "Void Siphon",
+      type: "score-steal",
+      color: "#7ef5d0",
+      telegraph: 900,
+      cooldownMin: 6000,
+      cooldownMax: 9500,
+      power: 16 // points stolen
+    }
+  },
+  {
+    name: "Doom Specter",
+    image: "https://placehold.co/300x300/141a3d/ff4d6d?text=DOOM%0ASPECTER&font=raleway",
+    points: 16,
+    tint: "#ff4d6d",
+    speed: 45,
+    sound: { wave: "sawtooth", freq: 200 },
+    hitSounds: [
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2311.wav", // Dark thud impact
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2312.wav", // Heavy dark impact
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2313.wav"  // Apocalyptic stomp impact (defeat)
+    ],
+    attack: {
+      name: "Doom Bolt",
+      type: "projectile",
+      color: "#ff4d6d",
+      telegraph: 700,
+      cooldownMin: 5500,
+      cooldownMax: 9000,
+      power: 14 // HP damage on a landed hit
+    }
   }
 ];
 
