@@ -9,7 +9,6 @@
   const MUTED_KEY = "keyOfLightMuted";
   const XP_KEY = "keyOfLightXP";
   
-  // Added cost for Reflect (4th spell)
   const BASE_SPELL_COSTS = [10, 15, 20, 15];
 
   const COMBO_TIERS = [
@@ -38,7 +37,7 @@
   let currentSpellIndex = 0;
   let spellMenuOpen = false;
   let activeBarriers = [];
-  let activeProjectiles = []; // Track enemy bullets
+  let activeProjectiles = [];
 
   // ---------- DOM ----------
   const arena = document.getElementById("arena");
@@ -167,7 +166,7 @@
   }
 
   function playHtmlAudio(url, vol = 0.4) {
-    if (muted) return;
+    if (muted || !url) return;
     let pool = audioElCache.get(url);
     if (!pool) { pool = []; audioElCache.set(url, pool); }
     let audio = pool.find(a => a.paused || a.ended);
@@ -181,7 +180,7 @@
   }
 
   // ================================================================
-  // MENU / UI
+  // MENU & SPELLS
   // ================================================================
   const localHigh = localStorage.getItem(HIGH_SCORE_KEY);
   if (localHigh) highscoreEl.textContent = localHigh;
@@ -262,10 +261,6 @@
     }
   });
 
-
-  // ================================================================
-  // MAGIC LOGIC
-  // ================================================================
   function castSpell(spellIndex) {
     if (spellMenuOpen) closeSpellMenu();
     
@@ -281,15 +276,10 @@
     statusText.textContent = `Cast ${sName}!`;
     playSynthTone({ wave: "sine", freq: 600 + (spellIndex*100) }, { duration: 0.2, pitchMult: 1.5, sweep: 2.0 });
 
-    if (spellIndex === 0) {
-      spawnBarrier('firaga', 120 + (magicTier * 20), magicTier);
-    } else if (spellIndex === 1) {
-      spawnBarrier('blizzaga', 180 + (magicTier * 40), magicTier);
-    } else if (spellIndex === 2) {
-      castThunder(magicTier);
-    } else if (spellIndex === 3) {
-      spawnBarrier('reflega', 120 + (magicTier * 20), magicTier);
-    }
+    if (spellIndex === 0) spawnBarrier('firaga', 120 + (magicTier * 20), magicTier);
+    else if (spellIndex === 1) spawnBarrier('blizzaga', 180 + (magicTier * 40), magicTier);
+    else if (spellIndex === 2) castThunder(magicTier);
+    else if (spellIndex === 3) spawnBarrier('reflega', 120 + (magicTier * 20), magicTier);
   }
 
   function spawnBarrier(type, durationFrames, tier) {
@@ -302,13 +292,11 @@
     el.style.top = `${mouseY - radius}px`;
     arena.appendChild(el);
 
-    const b = { type, el, x: mouseX, y: mouseY, radius, framesLeft: durationFrames, tier };
-    activeBarriers.push(b);
+    activeBarriers.push({ type, el, x: mouseX, y: mouseY, radius, framesLeft: durationFrames, tier });
   }
 
   function castThunder(tier) {
     const targets = [...slots].filter(s => s.hp > 0 && !s.locked).slice(0, 2 + tier);
-    
     targets.forEach(slot => {
       const w = slot.w || slot.el.offsetWidth;
       const h = slot.h || slot.el.offsetHeight;
@@ -359,11 +347,9 @@
       const dist = Math.hypot(b.x - scx, b.y - scy);
       
       if (dist < (b.radius + w/2)) {
-        if (b.type === 'firaga') {
-          if (!slot.fireCooldown) {
-            handleHit(slot, { clientX: b.x + arena.getBoundingClientRect().left, clientY: b.y + arena.getBoundingClientRect().top });
-            slot.fireCooldown = 30;
-          }
+        if (b.type === 'firaga' && !slot.fireCooldown) {
+          handleHit(slot, { clientX: b.x + arena.getBoundingClientRect().left, clientY: b.y + arena.getBoundingClientRect().top });
+          slot.fireCooldown = 30;
         } else if (b.type === 'blizzaga') {
           slot.freezeTimer = 180 + (b.tier * 60);
           slot.inner.classList.add("is-frozen");
@@ -373,7 +359,7 @@
   }
 
   // ================================================================
-  // GAMEPLAY / COMBAT
+  // COMBAT & GAMEPLAY
   // ================================================================
   function getActiveTier() {
     let t = COMBO_TIERS[0];
@@ -387,15 +373,20 @@
     if (slot.locked) return;
     
     getAudioCtx();
-    const typeDef = window.ENEMY_TYPES[slot.type] || window.ENEMY_TYPES.SHADOW;
+    const enemyData = slot.enemyData;
     const tier = getActiveTier();
 
     slot.inner.classList.remove("is-hit");
     void slot.inner.offsetWidth;
     slot.inner.classList.add("is-hit");
 
-    playHtmlAudio(typeDef.sfx.hit, 0.4);
-    playSynthTone({ wave: "triangle", freq: 440 + Math.random() * 200 }, { duration: 0.15, sweep: 1.5 });
+    // Play hit sound based on remaining hits or fallback to synth
+    const hitIndex = HITS_TO_DEFEAT - slot.hp;
+    if (enemyData.hitSounds && enemyData.hitSounds[hitIndex]) {
+      playHtmlAudio(enemyData.hitSounds[hitIndex], 0.4);
+    } else {
+      playSynthTone(enemyData.sound || { wave: "triangle", freq: 440 }, { duration: 0.15, sweep: 1.5 });
+    }
 
     slot.hp -= 1;
     updatePips(slot);
@@ -425,17 +416,8 @@
     const now = performance.now();
     const elapsed = now - lastKillAt;
     const remaining = COMBO_WINDOW_MS - elapsed;
-    if (remaining <= 0) {
-      breakCombo();
-    } else {
-      const pct = (remaining / COMBO_WINDOW_MS) * 100;
-      comboFillEl.style.width = `${pct}%`;
-    }
-  }
-
-  function getEnemyScore(type) {
-    const typeDef = window.ENEMY_TYPES[type] || window.ENEMY_TYPES.SHADOW;
-    return typeDef.baseScore || HIT_BASE_SCORE;
+    if (remaining <= 0) breakCombo();
+    else comboFillEl.style.width = `${(remaining / COMBO_WINDOW_MS) * 100}%`;
   }
 
   function updateScore(amount) {
@@ -446,19 +428,23 @@
   }
 
   function destroyEnemy(slot) {
-    const typeDef = window.ENEMY_TYPES[slot.type] || window.ENEMY_TYPES.SHADOW;
+    const enemyData = slot.enemyData;
     slot.locked = true;
     slot.inner.classList.remove("is-hit");
     slot.inner.classList.add("is-defeated");
     slot.el.classList.add("is-defeated");
 
-    playHtmlAudio(typeDef.sfx.defeat, 0.6);
-    playSynthTone({ wave: "square", freq: 110 }, { duration: 0.25, sweep: 0.5 });
+    // Play final defeat sound if available
+    if (enemyData.hitSounds && enemyData.hitSounds[2]) {
+      playHtmlAudio(enemyData.hitSounds[2], 0.6);
+    } else {
+      playSynthTone({ wave: "square", freq: 110 }, { duration: 0.25, sweep: 0.5 });
+    }
 
     combo++;
     lastKillAt = performance.now();
     
-    playerXp += typeDef.xpValue || 5;
+    playerXp += 5;
     updatePlayerStats();
     restoreMp(5 + getMagicTier());
 
@@ -466,19 +452,18 @@
     comboCountEl.textContent = `×${combo}`;
     comboCountEl.style.color = tier.color;
 
-    const gained = getEnemyScore(slot.type) * tier.mult;
+    const gained = enemyData.points * tier.mult;
     updateScore(gained);
 
     const rect = slot.el.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
-    const topY = rect.top;
-    
-    spawnFloatingText(centerX, topY, `+${gained}`, tier.color);
+    spawnFloatingText(centerX, rect.top, `+${gained}`, tier.color);
 
-    const nSparks = prefersReducedMotion ? 0 : (3 + Math.floor(combo / 10));
-    spawnDefeatSparks(centerX, rect.top + rect.height / 2, tier.color, nSparks);
+    if (!prefersReducedMotion) {
+      spawnDefeatSparks(centerX, rect.top + rect.height / 2, tier.color, 3 + Math.floor(combo / 10));
+    }
 
-    statusText.textContent = `Defeated ${typeDef.name}!`;
+    statusText.textContent = `Defeated ${enemyData.name}!`;
 
     setTimeout(() => {
       slot.el.remove();
@@ -520,7 +505,6 @@
   }
 
   function spawnDefeatSparks(cx, cy, color, count) {
-    if (prefersReducedMotion) return;
     for (let i = 0; i < count; i++) {
       const spark = document.createElement("div");
       spark.className = "star-particle";
@@ -535,7 +519,6 @@
       spark.style.setProperty("--rot", `${-100 + Math.random() * 200}deg`);
       spark.style.setProperty("--end-scale", `${0.2 + Math.random() * 0.4}`);
       spark.style.setProperty("--size", `${8 + Math.random() * 6}px`);
-      spark.style.setProperty("--delay", `${Math.random() * 50}ms`);
       
       document.body.appendChild(spark);
       setTimeout(() => spark.remove(), 600);
@@ -543,13 +526,12 @@
   }
 
   // ================================================================
-  // ENEMY MOVEMENT & ATTACKS
+  // ENEMY SETUP & MOVEMENT
   // ================================================================
-  function createEnemyEl(type) {
-    const typeDef = window.ENEMY_TYPES[type] || window.ENEMY_TYPES.SHADOW;
+  function createEnemyEl(enemyData) {
     const wrap = document.createElement("div");
     wrap.className = "enemy";
-    wrap.style.setProperty("--pip-color", typeDef.color || "var(--magenta)");
+    wrap.style.setProperty("--pip-color", enemyData.tint || "var(--magenta)");
 
     const inner = document.createElement("div");
     inner.className = "enemy-inner is-spawning";
@@ -561,19 +543,18 @@
     imgWrap.className = "enemy-portrait-wrap";
 
     const img = document.createElement("img");
-    img.src = typeDef.img;
+    img.src = enemyData.image;
     img.className = "enemy-portrait";
     img.draggable = false;
     img.alt = "";
 
     const nameLab = document.createElement("div");
     nameLab.className = "enemy-name";
-    nameLab.textContent = typeDef.name;
+    nameLab.textContent = enemyData.name;
 
     const pips = document.createElement("div");
     pips.className = "enemy-pips";
-    const hp = typeDef.maxHp || 3;
-    for (let i = 0; i < hp; i++) {
+    for (let i = 0; i < HITS_TO_DEFEAT; i++) {
       const p = document.createElement("div");
       p.className = "pip filled";
       pips.appendChild(p);
@@ -593,50 +574,31 @@
     pips.forEach((p, idx) => { p.classList.toggle("filled", idx < slot.hp); });
   }
 
-  function getRandomType() {
-    const keys = Object.keys(window.ENEMY_TYPES);
-    let r = Math.random();
-    
-    let wsum = 0;
-    const weights = [];
-    for (const k of keys) {
-      const w = window.ENEMY_TYPES[k].spawnWeight || 1;
-      wsum += w;
-      weights.push({ k, w: wsum });
-    }
-    
-    const target = r * wsum;
-    for (const item of weights) {
-      if (target <= item.w) return item.k;
-    }
-    return keys[0];
+  function getRandomEnemyData() {
+    const index = Math.floor(Math.random() * ENEMY_ROSTER.length);
+    return ENEMY_ROSTER[index];
   }
 
   function spawnSlot(idx) {
-    const type = getRandomType();
-    const typeDef = window.ENEMY_TYPES[type] || window.ENEMY_TYPES.SHADOW;
-    const el = createEnemyEl(type);
+    const enemyData = getRandomEnemyData();
+    const el = createEnemyEl(enemyData);
     arena.appendChild(el);
 
     const aw = arena.clientWidth;
     const ah = arena.clientHeight;
-    
     const compW = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--enemy-w')) || 128;
-    const safeW = aw - compW;
-    const safeH = ah - compW;
-
-    const x = Math.max(0, Math.min(Math.random() * safeW, safeW));
-    const y = Math.max(0, Math.min(Math.random() * safeH, safeH));
+    
+    const x = Math.max(0, Math.random() * (aw - compW));
+    const y = Math.max(0, Math.random() * (ah - compW));
 
     const angle = Math.random() * Math.PI * 2;
-    const speed = (typeDef.speed || 50) + Math.random() * 30;
+    const speed = enemyData.speed || 55;
     
     const slotObj = {
-      idx, type, el, inner: el.querySelector(".enemy-inner"),
+      idx, enemyData, el, inner: el.querySelector(".enemy-inner"),
       x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-      hp: typeDef.maxHp || 3, locked: false,
-      w: compW, h: compW, fireCooldown: 0, freezeTimer: 0,
-      attackTimer: 3 + Math.random() * 4 // Attack cooldown
+      hp: HITS_TO_DEFEAT, locked: false,
+      w: compW, h: compW, fireCooldown: 0, freezeTimer: 0
     };
 
     el.addEventListener("mousedown", (e) => {
@@ -648,67 +610,15 @@
   }
 
   function respawnSlot(oldSlot) {
-    if (oldSlot && oldSlot.el && oldSlot.el.parentNode) {
-      oldSlot.el.remove();
-    }
+    if (oldSlot && oldSlot.el) oldSlot.el.remove();
     spawnSlot(oldSlot.idx);
-  }
-
-  // Enemy Attacks Loop
-  function updateEnemyAttacks(dt) {
-    for (const slot of slots) {
-      if (slot.hp <= 0 || slot.locked || slot.freezeTimer > 0) continue;
-
-      slot.attackTimer -= dt;
-      if (slot.attackTimer <= 0) {
-        slot.attackTimer = 4 + Math.random() * 3;
-        triggerEnemyAttack(slot);
-      }
-    }
-  }
-
-  function triggerEnemyAttack(slot) {
-    const w = slot.w || slot.el.offsetWidth;
-    const h = slot.h || slot.el.offsetHeight;
-    const scx = slot.x + w / 2;
-    const scy = slot.y + h / 2;
-
-    slot.inner.classList.add("is-charging-attack");
-    playHtmlAudio(window.ENEMY_TYPES[slot.type].sfx.hit, 0.2); // Telegaph sound
-
-    setTimeout(() => {
-      if (!gameActive || slot.hp <= 0) return;
-      slot.inner.classList.remove("is-charging-attack");
-
-      const bullet = document.createElement("div");
-      bullet.className = "enemy-projectile";
-      bullet.style.left = scx + "px";
-      bullet.style.top = scy + "px";
-      arena.appendChild(bullet);
-
-      const targetX = mouseX;
-      const targetY = mouseY;
-      const angle = Math.atan2(targetY - scy, targetX - scx);
-      
-      activeProjectiles.push({
-        el: bullet,
-        x: scx,
-        y: scy,
-        vx: Math.cos(angle) * 350, // pixels per second
-        vy: Math.sin(angle) * 350,
-        reflected: false
-      });
-      playSynthTone({ wave: "square", freq: 800 }, { duration: 0.1, sweep: 0.5 });
-    }, 800);
   }
 
   function stepMovement(dt) {
     if (!gameActive) return;
-
     const aw = arena.clientWidth;
     const ah = arena.clientHeight;
 
-    // 1. Move slots
     for (let i = 0; i < slots.length; i++) {
       const s = slots[i];
       if (!s || s.locked) continue;
@@ -716,18 +626,13 @@
       if (s.fireCooldown > 0) s.fireCooldown--;
       if (s.freezeTimer > 0) {
         s.freezeTimer--;
-        if (s.freezeTimer <= 0) {
-          s.inner.classList.remove("is-frozen");
-        }
+        if (s.freezeTimer <= 0) s.inner.classList.remove("is-frozen");
         s.el.style.transform = `translate(${s.x}px, ${s.y}px)`;
         continue;
       }
 
       s.x += s.vx * dt;
       s.y += s.vy * dt;
-      
-      s.w = s.el.offsetWidth || 128;
-      s.h = s.el.offsetHeight || 128;
 
       let bounced = false;
       if (s.x < 0) { s.x = 0; s.vx *= -1; bounced = true; }
@@ -736,92 +641,31 @@
       if (s.y < 0) { s.y = 0; s.vy *= -1; bounced = true; }
       else if (s.y + s.h > ah) { s.y = ah - s.h; s.vy *= -1; bounced = true; }
 
-      // Random drifting changes
       if (!bounced && Math.random() < 0.02) {
-        const typeDef = window.ENEMY_TYPES[s.type];
         const angle = Math.random() * Math.PI * 2;
-        const spd = (typeDef.speed || 50) + Math.random() * 30;
+        const spd = s.enemyData.speed || 55;
         s.vx = Math.cos(angle) * spd;
         s.vy = Math.sin(angle) * spd;
       }
 
       s.el.style.transform = `translate(${s.x}px, ${s.y}px)`;
     }
-
-    // 2. Projectiles & Reflect Logic
-    const arenaRect = arena.getBoundingClientRect();
-    for (let i = activeProjectiles.length - 1; i >= 0; i--) {
-      const p = activeProjectiles[i];
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-      p.el.style.left = p.x + 'px';
-      p.el.style.top = p.y + 'px';
-
-      let removed = false;
-
-      if (!p.reflected) {
-        // Check barrier reflection
-        for (const b of activeBarriers) {
-          if (b.type === 'reflega') {
-            if (Math.hypot(p.x - b.x, p.y - b.y) < b.radius) {
-              p.reflected = true;
-              p.el.classList.add('reflected');
-              p.vx = -p.vx * 1.5;
-              p.vy = -p.vy * 1.5;
-              playSynthTone({ wave: "triangle", freq: 1200 }, { duration: 0.1, sweep: 2.0 });
-              break;
-            }
-          }
-        }
-        
-        if (!p.reflected && Math.hypot(p.x - mouseX, p.y - mouseY) < 20) {
-          breakCombo("Hit by enemy attack!");
-          p.el.remove();
-          activeProjectiles.splice(i, 1);
-          removed = true;
-        }
-      } else {
-        // Check hitting enemies if reflected
-        for (const slot of slots) {
-          if (slot.hp <= 0 || slot.locked) continue;
-          const w = slot.w || slot.el.offsetWidth;
-          const h = slot.h || slot.el.offsetHeight;
-          if (Math.hypot(p.x - (slot.x + w/2), p.y - (slot.y + h/2)) < w/2) {
-            handleHit(slot, { clientX: p.x + arenaRect.left, clientY: p.y + arenaRect.top });
-            p.el.remove();
-            activeProjectiles.splice(i, 1);
-            removed = true;
-            break;
-          }
-        }
-      }
-
-      // Out of bounds
-      if (!removed && (p.x < 0 || p.x > aw || p.y < 0 || p.y > ah)) {
-        p.el.remove();
-        activeProjectiles.splice(i, 1);
-      }
-    }
   }
 
   function animationLoop(now) {
     if (!gameActive) return;
-    
     if (lastFrameTime === 0) lastFrameTime = now;
-    const dt = (now - lastFrameTime) / 1000; 
+    const dt = Math.min((now - lastFrameTime) / 1000, 0.05);
     lastFrameTime = now;
 
-    const cappedDt = Math.min(dt, 0.05);
-
-    stepMovement(cappedDt);
-    updateEnemyAttacks(cappedDt);
+    stepMovement(dt);
     updateBarriers();
     
     rafId = requestAnimationFrame(animationLoop);
   }
 
   // ================================================================
-  // GAME LIFECYCLE
+  // LIFECYCLE
   // ================================================================
   function startGame() {
     startOverlay.classList.add("overlay--hidden");
@@ -841,20 +685,12 @@
     arena.innerHTML = "";
     slots = [];
     activeBarriers = [];
-    
-    activeProjectiles.forEach(p => p.el.remove());
-    activeProjectiles = [];
 
     getAudioCtx();
     updatePlayerStats();
     restoreMp(100);
 
-    // Initial Spawns
-    const w = window.innerWidth;
-    let spawnCount = 4;
-    if (w > 1200) spawnCount = 6;
-    else if (w > 800) spawnCount = 5;
-    
+    const spawnCount = typeof ARENA_SIZE !== 'undefined' ? ARENA_SIZE : 4;
     for (let i = 0; i < spawnCount; i++) {
       spawnSlot(i);
     }
@@ -883,26 +719,18 @@
     if (rafId) cancelAnimationFrame(rafId);
     
     if (spellMenuOpen) closeSpellMenu();
-    slots.forEach(s => {
-      if (!s.locked && s.el) {
-        s.el.style.pointerEvents = "none";
-        s.el.style.opacity = "0.5";
-      }
-    });
 
     finalScoreEl.textContent = score;
     const prevBest = parseInt(localStorage.getItem(HIGH_SCORE_KEY) || "0", 10);
     
     if (score > prevBest) {
-      localStorage.setItem(HIGH_SCORE_KEY, score);
+      localStorage.setItem(HIGH_SCOR_KEY || HIGH_SCORE_KEY, score);
       highscoreEl.textContent = score;
       newBestNote.classList.remove("overlay--hidden");
       endHeading.textContent = "Outstanding!";
-      playSynthTone({ wave: "sine", freq: 660 }, { duration: 0.5, sweep: 1.5 });
     } else {
       newBestNote.classList.add("overlay--hidden");
       endHeading.textContent = "Time's Up!";
-      playSynthTone({ wave: "square", freq: 300 }, { duration: 0.4, sweep: 0.7 });
     }
 
     localStorage.setItem(XP_KEY, playerXp);
