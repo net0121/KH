@@ -942,5 +942,8 @@ function castThunder(tier) {
         castSpell(currentSpellIndex);
         closeSpellMenu();
       } else if (e.key === 'Escape')
+     }
+    }
+  });
           
 })();
