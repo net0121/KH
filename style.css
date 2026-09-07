@@ -507,6 +507,22 @@ body {
 .thundaga-bolt {
   position: absolute;
   background: linear-gradient(to bottom, #ffffff, #f4c95d 80%, transparent);
-  box-shadow: 0 0 15px varIt looks like you're referring to some code from a previous conversation, but I don't have access to that context right now. 
+  box-shadow: 0 0 15px var(--gold);
+  pointer-events: none;
+  z-index: 5;
+}
 
-Could you please paste the code you are working on here and let me know what needs to be fixed or what you want it to do?
+@keyframes spinFire {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pulseIce {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  100% { transform: scale(1.05); opacity: 1; }
+}
+
+@keyframes pulseReflect {
+  0% { box-shadow: 0 0 10px rgba(255, 255, 255, 0.5); transform: scale(0.98); }
+  100% { box-shadow: 0 0 25px rgba(255, 255, 255, 1); transform: scale(1.02); }
+}
