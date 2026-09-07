@@ -150,7 +150,7 @@
     hpFillEl.classList.add("hp-flash");
     playSynthTone({ wave: "square", freq: 160 }, { pitchMult: 1, duration: 0.18, volume: 0.16, sweep: 0.4 });
     if (currentHp <= 0) {
-      endGame("Your Heart Fell...");
+      if(typeof endGame === 'function') endGame("Your Heart Fell...");
     }
   }
 
@@ -256,7 +256,9 @@
       }
     }
     const cfg = enemy.sound || { wave: "square", freq: 240 };
-    if (hitsLanded >= HITS_TO_DEFEAT) {
+    // Assuming HITS_TO_DEFEAT exists in your full scope
+    const htd = typeof HITS_TO_DEFEAT !== 'undefined' ? HITS_TO_DEFEAT : 3;
+    if (hitsLanded >= htd) {
       playSynthTone(cfg, { pitchMult: 1.5, duration: 0.16, volume: 0.19 });
       playNoiseBurst({ duration: 0.07, volume: 0.16 });
     } else {
@@ -280,7 +282,8 @@
   function buildArena() {
     arena.innerHTML = "";
     slots = [];
-    for (let i = 0; i < ARENA_SIZE; i++) {
+    const size = typeof ARENA_SIZE !== 'undefined' ? ARENA_SIZE : 10;
+    for (let i = 0; i < size; i++) {
       const slot = createSlot();
       arena.appendChild(slot.el);
       slots.push(slot);
@@ -316,7 +319,8 @@
     const pips = document.createElement("div");
     pips.className = "enemy-pips";
     const pipEls = [];
-    for (let p = 0; p < HITS_TO_DEFEAT; p++) {
+    const htd = typeof HITS_TO_DEFEAT !== 'undefined' ? HITS_TO_DEFEAT : 3;
+    for (let p = 0; p < htd; p++) {
       const pip = document.createElement("span");
       pip.className = "pip";
       pips.appendChild(pip);
@@ -335,7 +339,7 @@
 
     const activate = (e) => {
       e.preventDefault();
-      handleHit(slot, e);
+      if(typeof handleHit === 'function') handleHit(slot, e);
     };
     el.addEventListener("click", activate);
     el.addEventListener("keydown", (e) => {
@@ -346,6 +350,7 @@
   }
 
   function randomEnemy() {
+    if(typeof ENEMY_ROSTER === 'undefined') return null;
     return ENEMY_ROSTER[Math.floor(Math.random() * ENEMY_ROSTER.length)];
   }
 
@@ -416,7 +421,7 @@
         if (proj.el.parentNode) proj.el.remove();
         activeProjectiles = activeProjectiles.filter(p => p !== proj);
         if (targetSlot && targetSlot.hp > 0 && !targetSlot.locked) {
-          handleHit(targetSlot, { clientX: arena.getBoundingClientRect().left + targetX, clientY: arena.getBoundingClientRect().top + targetY });
+          if(typeof handleHit === 'function') handleHit(targetSlot, { clientX: arena.getBoundingClientRect().left + targetX, clientY: arena.getBoundingClientRect().top + targetY });
         }
       }, 200);
     } else {
@@ -433,7 +438,8 @@
 
     // Active spell barriers logic
     activeBarriers.forEach(b => {
-      if (b.type === 'firaga' || b.type === 'blizzaga' || b.type === 'reflega' || b.type === 'aeroga') {
+      // MAGNEGA follows the mouse just like Fire, Blizzard, Reflect, and Aero
+      if (b.type === 'firaga' || b.type === 'blizzaga' || b.type === 'reflega' || b.type === 'aeroga' || b.type === 'magnega') {
         b.x = mouseX;
         b.y = mouseY;
         b.el.style.left = (b.x - b.radius) + 'px';
@@ -466,34 +472,40 @@
         if (dist < (w / 2 + b.radius)) {
           if (b.type === 'firaga') {
             slot.hp = 1;
-            handleHit(slot, { clientX: arenaRect.left + scx, clientY: arenaRect.top + scy });
+            if(typeof handleHit === 'function') handleHit(slot, { clientX: arenaRect.left + scx, clientY: arenaRect.top + scy });
           } else if (b.type === 'blizzaga') {
             if (!slot.freezeTimer || slot.freezeTimer <= 0) {
               slot.freezeTimer = 3000 + (b.tier * 2000);
             }
           } else if (b.type === 'aeroga') {
-            // Push enemy back and tick damage
+            // STRONGER AERO PUSH: Base push of 150 + 120 per tier
+            const pushStrength = 150 + (b.tier * 120);
             const angle = Math.atan2(scy - b.y, scx - b.x);
-            slot.x += Math.cos(angle) * 180 * dt;
-            slot.y += Math.sin(angle) * 180 * dt;
-            if (!slot.aeroTick || now - slot.aeroTick > 400) {
+            slot.x += Math.cos(angle) * pushStrength * dt;
+            slot.y += Math.sin(angle) * pushStrength * dt;
+            
+            // STRONGER AERO DAMAGE: Ticks faster at higher tiers
+            const tickRate = 500 - (b.tier * 120); 
+            if (!slot.aeroTick || now - slot.aeroTick > tickRate) {
               slot.aeroTick = now;
-              handleHit(slot, { clientX: arenaRect.left + scx, clientY: arenaRect.top + scy });
+              if(typeof handleHit === 'function') handleHit(slot, { clientX: arenaRect.left + scx, clientY: arenaRect.top + scy });
             }
           }
         }
 
-        // Magnet pull towards fixed center
+        // MAGNET UPDATES: Pulls towards moving player center, stronger per tier
         if (b.type === 'magnega') {
-          if (dist < 420) {
-            const pullSpeed = (420 - dist) * 1.8;
+          const pullRadius = 320 + (b.tier * 80); // Gets wider per tier
+          if (dist < pullRadius) {
+            const pullSpeed = (pullRadius - dist) * (1.2 + b.tier * 0.4);
             const angle = Math.atan2(b.y - scy, b.x - scx);
             slot.x += Math.cos(angle) * pullSpeed * dt;
             slot.y += Math.sin(angle) * pullSpeed * dt;
 
-            if (dist < 35 && (!slot.magnetTick || now - slot.magnetTick > 450)) {
+            const tickRate = 600 - (b.tier * 100); // Damages faster at higher tiers
+            if (dist < 40 + (b.tier * 10) && (!slot.magnetTick || now - slot.magnetTick > tickRate)) {
               slot.magnetTick = now;
-              handleHit(slot, { clientX: arenaRect.left + scx, clientY: arenaRect.top + scy });
+              if(typeof handleHit === 'function') handleHit(slot, { clientX: arenaRect.left + scx, clientY: arenaRect.top + scy });
             }
           }
         }
@@ -687,7 +699,7 @@
       case "combo-break": {
         if (combo > 0) {
           showFloater(slot, "Combo Broken!");
-          breakCombo(`${slot.enemy.name} lets out a wail — combo shattered!`);
+          if(typeof breakCombo === 'function') breakCombo(`${slot.enemy.name} lets out a wail — combo shattered!`);
         } else {
           showFloater(slot, atk.name);
         }
@@ -712,7 +724,9 @@
         showFloater(slot, `-${atk.power}s`);
         statusText.textContent = `${slot.enemy.name} burns away precious seconds!`;
         playSynthTone({ wave: "square", freq: 150 }, { pitchMult: 1, duration: 0.25, volume: 0.15, sweep: 0.4 });
-        if (timeLeft <= 0) endGame();
+        if (timeLeft <= 0) {
+            if(typeof endGame === 'function') endGame();
+        }
         break;
       }
       case "score-steal": {
@@ -764,7 +778,7 @@
             const scx = s.x + (s.w || 100) / 2;
             const scy = s.y + (s.h || 100) / 2;
             if (Math.hypot(scx - b.x, scy - b.y) <= radius * 1.4) {
-              handleHit(s, { clientX: arena.getBoundingClientRect().left + scx, clientY: arena.getBoundingClientRect().top + scy });
+              if(typeof handleHit === 'function') handleHit(s, { clientX: arena.getBoundingClientRect().left + scx, clientY: arena.getBoundingClientRect().top + scy });
             }
           }
         });
@@ -806,14 +820,14 @@
         playSynthTone({ wave: "triangle", freq: 520 }, { pitchMult: 1.3, duration: 0.2, volume: 0.2, sweep: 1.2 });
         break;
       case 5: // Magnet
-        spawnBarrier('magnega', 90 + tier * 25, tier, 3500);
+        spawnBarrier('magnega', 90 + tier * 35, tier, 3500 + tier * 500);
         playSynthTone({ wave: "sine", freq: 180 }, { pitchMult: 0.8, duration: 0.35, volume: 0.18, sweep: 1.4 });
         break;
       case 6: // Stop
         castStop(tier);
         break;
       case 7: // Aero
-        spawnBarrier('aeroga', 75 + tier * 20, tier, 4000);
+        spawnBarrier('aeroga', 75 + tier * 30, tier, 4000 + tier * 1000);
         playSynthTone({ wave: "sawtooth", freq: 340 }, { pitchMult: 1.1, duration: 0.6, volume: 0.16, sweep: 1.5 });
         break;
     }
@@ -830,16 +844,27 @@
         const bolt = document.createElement('div');
         bolt.className = 'thundaga-bolt';
         const w = slot.w || 100;
-        bolt.style.width = '44px';
+        
+        // THUNDER BIGGER: Visual width increases with tier
+        const boltWidth = 30 + (tier * 20); 
+        bolt.style.width = boltWidth + 'px';
         bolt.style.height = '100%';
-        bolt.style.left = (slot.x + w / 2 - 14) + 'px';
+        bolt.style.left = (slot.x + w / 2 - (boltWidth / 2)) + 'px';
         bolt.style.top = '0';
         arena.appendChild(bolt);
 
-        playSynthTone({ wave: "square", freq: 400 }, { pitchMult: 1.5, duration: 0.1, volume: 0.15, sweep: 0.3 });
-        handleHit(slot, { clientX: arena.getBoundingClientRect().left + slot.x, clientY: arena.getBoundingClientRect().top + slot.y });
+        playSynthTone({ wave: "square", freq: 400 - (tier * 20) }, { pitchMult: 1.5, duration: 0.15, volume: 0.15 + (tier * 0.05), sweep: 0.3 });
+        
+        // THUNDER STRONGER: Hits multiple times based on tier (Thundaga hits 3 times)
+        for (let hit = 0; hit < tier; hit++) {
+           setTimeout(() => {
+              if (slot.hp > 0 && !slot.locked) {
+                 if(typeof handleHit === 'function') handleHit(slot, { clientX: arena.getBoundingClientRect().left + slot.x, clientY: arena.getBoundingClientRect().top + slot.y });
+              }
+           }, hit * 100);
+        }
 
-        setTimeout(() => bolt.remove(), 300);
+        setTimeout(() => bolt.remove(), 300 + (tier * 50));
       }, index * 100);
     });
   }
@@ -929,231 +954,4 @@
     }
   });
 
-  function getComboTier(comboVal) {
-    let active = COMBO_TIERS[0];
-    for (const t of COMBO_TIERS) {
-      if (comboVal >= t.min) active = t;
-    }
-    return active;
-  }
-
-  function updateComboUI() {
-    comboCountEl.textContent = `${combo}x COMBO`;
-    const tier = getComboTier(combo);
-    comboCountEl.style.color = tier.color;
-    comboFillEl.style.background = tier.color;
-
-    if (combo === 0) {
-      comboFillEl.style.width = "0%";
-      return;
-    }
-    const elapsed = Date.now() - lastKillAt;
-    const remain = Math.max(0, COMBO_WINDOW_MS - elapsed);
-    comboFillEl.style.width = `${(remain / COMBO_WINDOW_MS) * 100}%`;
-  }
-
-  function breakCombo(msg) {
-    if (combo > 0) {
-      combo = 0;
-      updateComboUI();
-      statusText.textContent = msg || "Combo reset!";
-    }
-  }
-
-  function spawnStarParticles(cx, cy, tintColor, isDefeat) {
-    const count = isDefeat ? 14 : 7;
-    for (let i = 0; i < count; i++) {
-      const p = document.createElement("div");
-      p.className = "star-particle";
-      const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.6;
-      const dist = isDefeat ? (32 + Math.random() * 45) : (18 + Math.random() * 26);
-      p.style.setProperty("--dx", `${Math.cos(angle) * dist}px`);
-      p.style.setProperty("--dy", `${Math.sin(angle) * dist}px`);
-      p.style.setProperty("--x", `${cx}px`);
-      p.style.setProperty("--y", `${cy}px`);
-      p.style.setProperty("--star-color", tintColor || "var(--gold)");
-      p.style.setProperty("--delay", `${Math.random() * 40}ms`);
-      arena.appendChild(p);
-      setTimeout(() => p.remove(), 600);
-    }
-  }
-
-  function handleHit(slot, event) {
-    if (!gameActive || slot.locked || slot.hp <= 0) return;
-
-    if (slot.attacking) {
-      cancelAttackWindup(slot);
-      showFloater(slot, "Interrupted!", "var(--cyan)");
-    }
-
-    slot.hp -= 1;
-    const hitsLanded = HITS_TO_DEFEAT - slot.hp;
-
-    slot.inner.classList.remove("is-hit");
-    void slot.inner.offsetWidth;
-    slot.inner.classList.add("is-hit");
-
-    playHitSound(slot.enemy, hitsLanded);
-
-    const rect = arena.getBoundingClientRect();
-    const cx = (event ? event.clientX : rect.left + slot.x + 50) - rect.left;
-    const cy = (event ? event.clientY : rect.top + slot.y + 50) - rect.top;
-
-    spawnStarParticles(cx, cy, slot.enemy.tint, slot.hp <= 0);
-
-    const pipIndex = hitsLanded - 1;
-    if (slot.pipEls[pipIndex]) {
-      slot.pipEls[pipIndex].classList.add("filled");
-    }
-
-    if (slot.hp > 0) {
-      restoreMp(5);
-      const partialPts = Math.round(HIT_BASE_SCORE * getComboTier(combo).mult);
-      score += partialPts;
-      scoreEl.textContent = score;
-      showFloater(slot, `+${partialPts}`);
-      statusText.textContent = `Hit ${slot.enemy.name}! (${slot.hp} remaining)`;
-      return;
-    }
-
-    // Defeated!
-    slot.locked = true;
-    slot.inner.classList.add("is-defeated");
-    slot.el.classList.add("is-defeated");
-
-    combo += 1;
-    lastKillAt = Date.now();
-    updateComboUI();
-
-    restoreMp(15);
-    playerXp += slot.enemy.points;
-    localStorage.setItem(XP_KEY, playerXp);
-    updatePlayerStats();
-
-    const pts = Math.round(slot.enemy.points * getComboTier(combo).mult);
-    score += pts;
-    scoreEl.textContent = score;
-    showFloater(slot, `+${pts}`);
-    statusText.textContent = `Banished ${slot.enemy.name}! +${pts} pts`;
-
-    setTimeout(() => respawnSlot(slot), 420);
-  }
-
-  function populateSlot(slot, enemy) {
-    slot.enemy = enemy;
-    slot.hp = HITS_TO_DEFEAT;
-    slot.locked = false;
-    slot.freezeTimer = 0;
-    slot.stopTimer = 0;
-    slot.moving = true;
-    slot.cloakTimer = 0;
-    slot.speedBoostTimer = 0;
-
-    slot.inner.className = "enemy-inner is-spawning";
-    slot.inner.style.removeProperty("--cloak-opacity");
-    slot.el.classList.remove("is-defeated");
-
-    slot.portrait.src = enemy.image;
-    slot.portrait.alt = enemy.name;
-    slot.nameEl.textContent = enemy.name;
-
-    slot.telegraphEl.classList.remove("is-charging");
-    cancelAttackWindup(slot, { restoreVelocity: false });
-
-    slot.pipEls.forEach((pip) => {
-      pip.classList.remove("filled");
-      pip.style.setProperty("--pip-color", enemy.tint || "var(--magenta)");
-    });
-
-    randomPositionFor(slot);
-    randomVelocityFor(slot);
-    placeSlot(slot);
-
-    slot.attackTimer = randomAttackInterval(enemy);
-  }
-
-  function respawnSlot(slot) {
-    populateSlot(slot, randomEnemy());
-  }
-
-  function startGame() {
-    score = 0;
-    timeLeft = ROUND_SECONDS;
-    combo = 0;
-    lastKillAt = 0;
-    gameActive = true;
-    lastFrameTime = 0;
-    activeProjectiles.forEach(p => { if (p.el.parentNode) p.el.remove(); });
-    activeProjectiles = [];
-
-    scoreEl.textContent = "0";
-    timeEl.textContent = timeLeft;
-    timeEl.classList.remove("time-low");
-    statusText.textContent = "Banish the shadow creatures!";
-
-    currentHp = maxHp;
-    currentMp = maxMp;
-    updateHpFill();
-    updateComboUI();
-    updatePlayerStats();
-
-    startOverlay.classList.add("overlay--hidden");
-    endOverlay.classList.add("overlay--hidden");
-
-    buildArena();
-    slots.forEach((s) => populateSlot(s, randomEnemy()));
-
-    if (countdownTimer) clearInterval(countdownTimer);
-    countdownTimer = setInterval(() => {
-      timeLeft -= 1;
-      timeEl.textContent = timeLeft;
-      timeEl.classList.toggle("time-low", timeLeft <= 10);
-      if (timeLeft <= 0) endGame();
-    }, 1000);
-
-    if (comboTickTimer) clearInterval(comboTickTimer);
-    comboTickTimer = setInterval(() => {
-      if (combo > 0 && Date.now() - lastKillAt > COMBO_WINDOW_MS) {
-        breakCombo();
-      } else {
-        updateComboUI();
-      }
-    }, 100);
-
-    if (rafId) cancelAnimationFrame(rafId);
-    rafId = requestAnimationFrame(animationLoop);
-  }
-
-  function endGame(reason = "TIME'S UP!") {
-    gameActive = false;
-    clearInterval(countdownTimer);
-    clearInterval(comboTickTimer);
-    if (rafId) cancelAnimationFrame(rafId);
-
-    const prevHigh = loadHighScore();
-    let isNewBest = false;
-    if (score > prevHigh) {
-      localStorage.setItem(HIGH_SCORE_KEY, score);
-      highscoreEl.textContent = score;
-      isNewBest = true;
-    }
-
-    endHeading.textContent = reason;
-    finalScoreEl.textContent = score;
-    newBestNote.classList.toggle("overlay--hidden", !isNewBest);
-    endOverlay.classList.remove("overlay--hidden");
-  }
-
-  muteBtn.addEventListener("click", () => setMuted(!muted));
-  magicBtn.addEventListener("click", (e) => {
-    if (!gameActive) return;
-    const rect = magicBtn.getBoundingClientRect();
-    openSpellMenu(rect.left + rect.width / 2, rect.bottom);
-  });
-  startBtn.addEventListener("click", startGame);
-  restartBtn.addEventListener("click", startGame);
-
-  setMuted(muted);
-  loadHighScore();
-  updatePlayerStats();
 })();
