@@ -793,6 +793,23 @@
   }
 
   // --- Input overrides for Spell Menu ---
+  const magicBtn = document.getElementById("magicBtn");
+
+  // Open menu via mobile-friendly button
+  if (magicBtn) {
+    magicBtn.addEventListener("click", (e) => {
+      if (!gameActive) return;
+      e.stopPropagation();
+      spellMenuOpen = true;
+      spellMenuEl.style.left = '50%';
+      spellMenuEl.style.top = '50%';
+      spellMenuEl.style.transform = 'translate(-50%, -50%)'; // Center on screen
+      spellMenuEl.classList.remove('overlay--hidden');
+      updateSpellMenuUI();
+    });
+  }
+
+  // Open menu via right-click (Desktop)
   document.addEventListener('contextmenu', (e) => {
     if (!gameActive) return;
     e.preventDefault();
@@ -800,10 +817,12 @@
     
     spellMenuEl.style.left = e.clientX + 'px';
     spellMenuEl.style.top = e.clientY + 'px';
+    spellMenuEl.style.transform = 'translate(0, 0)'; // Reset transform 
     spellMenuEl.classList.remove('overlay--hidden');
     updateSpellMenuUI();
   });
 
+  // Cycle spells via scroll wheel (Desktop)
   document.addEventListener('wheel', (e) => {
     if (!spellMenuOpen) return;
     e.preventDefault();
@@ -815,6 +834,17 @@
     updateSpellMenuUI();
   }, { passive: false });
 
+  // Hover to select spell item
+  spellMenuEl.addEventListener('mouseover', (e) => {
+    const hoveredSpell = e.target.closest('.spell-item');
+    if (hoveredSpell) {
+      const items = Array.from(spellMenuEl.querySelectorAll('.spell-item'));
+      currentSpellIndex = items.indexOf(hoveredSpell);
+      updateSpellMenuUI();
+    }
+  });
+
+  // Click to cast 
   document.addEventListener('click', (e) => {
     if (!gameActive) return;
     if (spellMenuOpen) {
@@ -822,6 +852,14 @@
       e.stopPropagation();
       spellMenuOpen = false;
       spellMenuEl.classList.add('overlay--hidden');
+      
+      // If the user tapped/clicked a specific spell item directly, select it before casting
+      const clickedSpell = e.target.closest('.spell-item');
+      if (clickedSpell) {
+        const items = Array.from(spellMenuEl.querySelectorAll('.spell-item'));
+        currentSpellIndex = items.indexOf(clickedSpell);
+      }
+      
       castSpell(currentSpellIndex);
     }
   }, true);
