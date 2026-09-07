@@ -1,512 +1,919 @@
-@font-face {
-  font-family: 'KHMenu';
-  src: url('KHMenu.otf') format('opentype');
-  font-weight: normal;
-  font-style: normal;
-}
+(() => {
+  "use strict";
 
-:root {
-  --bg: #0a0e27;
-  --panel: #141a3d;
-  --panel-alt: #1c2454;
-  --edge: #33407a;
-  --magenta: #ff6b9d;
-  --cyan: #6bc6ff;
-  --gold: #f4c95d;
-  --text: #f5f3ff;
-  --text-dim: #9aa0d4;
-  --danger: #ff5c5c;
+  // ---------- Config ----------
+  const ROUND_SECONDS = 60;
+  const COMBO_WINDOW_MS = 5000;
+  const HIT_BASE_SCORE = 3;
+  const HIGH_SCORE_KEY = "keyOfLightHighScore";
+  const MUTED_KEY = "keyOfLightMuted";
+  const XP_KEY = "keyOfLightXP";
+  
+  // Added cost for Reflect (4th spell)
+  const BASE_SPELL_COSTS = [10, 15, 20, 15];
 
-  --font-display: "KHMenu", "Baloo 2", sans-serif;
-  --font-body: "KHMenu", "Quicksand", sans-serif;
+  const COMBO_TIERS = [
+    { min: 0, mult: 1, color: "var(--magenta)" },
+    { min: 5, mult: 1.5, color: "var(--cyan)" },
+    { min: 10, mult: 2, color: "var(--gold)" },
+    { min: 20, mult: 3, color: "#ff8a3d" },
+    { min: 35, mult: 4, color: "#ff5c5c" }
+  ];
 
-  --cursor-blade: url("https://github.com/net0121/KH/blob/main/keyblade-bicubic%20(1).png?raw=true") 36 4, auto;
-  --cursor-blade-pointer: url("https://github.com/net0121/KH/blob/main/keyblade-bicubic%20(1).png?raw=true") 36 4, pointer;
+  const prefersReducedMotion =
+    window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  --enemy-w: 128px;
-}
+  // ---------- Mouse Tracking ----------
+  let mouseX = 0;
+  let mouseY = 0;
 
-* { box-sizing: border-box; }
+  document.addEventListener("mousemove", (e) => {
+    const rect = arena.getBoundingClientRect();
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
+  });
 
-html, body {
-  margin: 0;
-  height: 100%;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-body);
-  cursor: var(--cursor-blade);
-  overflow: hidden;
-}
+  // ---------- Spells & Magic Tiers ----------
+  const BASE_SPELLS = ['Fire', 'Blizzard', 'Thunder', 'Reflect'];
+  let currentSpellIndex = 0;
+  let spellMenuOpen = false;
+  let activeBarriers = [];
+  let activeProjectiles = []; // Track enemy bullets
 
-body {
-  display: flex;
-  background-image:
-    radial-gradient(circle, rgba(255,255,255,0.55) 1px, transparent 1.4px),
-    radial-gradient(circle, rgba(255,255,255,0.35) 1px, transparent 1.4px),
-    radial-gradient(ellipse at 50% -10%, #2a2d6e 0%, var(--bg) 60%);
-  background-size: 140px 140px, 90px 90px, 100% 100%;
-  background-position: 0 0, 45px 60px, 0 0;
-}
+  // ---------- DOM ----------
+  const arena = document.getElementById("arena");
+  const scoreEl = document.getElementById("score");
+  const timeEl = document.getElementById("time");
+  const comboCountEl = document.getElementById("comboCount");
+  const comboFillEl = document.getElementById("comboFill");
+  const statusText = document.getElementById("statusText");
+  const highscoreEl = document.getElementById("highscore");
+  const muteBtn = document.getElementById("muteBtn");
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
+  const startOverlay = document.getElementById("startOverlay");
+  const endOverlay = document.getElementById("endOverlay");
+  const startBtn = document.getElementById("startBtn");
+  const restartBtn = document.getElementById("restartBtn");
+  const endHeading = document.getElementById("endHeading");
+  const finalScoreEl = document.getElementById("finalScore");
+  const newBestNote = document.getElementById("newBestNote");
+
+  const spellMenuEl = document.getElementById("spellMenu");
+  const levelDisplayEl = document.getElementById("levelDisplay");
+  const xpFillEl = document.getElementById("xpFill");
+  const mpFillEl = document.getElementById("mpFill");
+
+  // ---------- State ----------
+  let score = 0;
+  let timeLeft = ROUND_SECONDS;
+  let combo = 0;
+  let lastKillAt = 0;
+  let gameActive = false;
+  let countdownTimer = null;
+  let comboTickTimer = null;
+  let rafId = null;
+  let lastFrameTime = 0;
+  let slots = [];
+  let muted = localStorage.getItem(MUTED_KEY) === "1";
+
+  // RPG State
+  let playerXp = Number(localStorage.getItem(XP_KEY)) || 0;
+  let playerLevel = 1;
+  let maxMp = 100;
+  let currentMp = 100;
+
+  function getMagicTier() {
+    if (playerLevel >= 10) return 3; 
+    if (playerLevel >= 5) return 2;  
+    return 1;                        
   }
-}
 
-.cabinet {
-  width: 100%;
-  height: 100%;
-  background: var(--panel);
-  padding: 16px 22px 14px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-
-.cabinet::before {
-  content: "";
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, var(--magenta), var(--cyan) 50%, var(--gold));
-}
-
-.mute-btn {
-  position: absolute;
-  top: 14px;
-  right: 16px;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 2px solid var(--edge);
-  background: var(--panel-alt);
-  color: var(--text);
-  font-size: 15px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: var(--cursor-blade-pointer);
-  transition: border-color 0.15s ease, transform 0.1s ease;
-  z-index: 2;
-}
-
-.mute-btn:hover { border-color: var(--gold); }
-.mute-btn:active { transform: scale(0.94); }
-.mute-btn:focus-visible {
-  outline: 3px solid var(--cyan);
-  outline-offset: 2px;
-}
-
-.mute-btn[aria-pressed="true"] { color: var(--text-dim); }
-
-.hud {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding-bottom: 14px;
-  margin-bottom: 4px;
-  border-bottom: 2px dashed var(--edge);
-}
-
-.hud-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 84px;
-}
-
-.hud-stat--right { align-items: flex-end; }
-
-.hud-label {
-  font-family: var(--font-body);
-  font-size: 14px;
-  letter-spacing: 0.02em;
-  color: var(--text-dim);
-}
-
-.hud-value {
-  font-family: var(--font-display);
-  font-size: 28px;
-  color: var(--text);
-  text-shadow: 0 0 12px rgba(244,201,93,0.25);
-  margin-top: -6px;
-}
-
-#time.time-low {
-  color: var(--danger);
-  text-shadow: 0 0 12px rgba(255,92,92,0.5);
-}
-
-.hud-combo {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-width: 280px;
-  padding-top: 3px;
-}
-
-#comboCount {
-  font-family: var(--font-display);
-  font-size: 18px;
-  color: var(--magenta);
-  transition: color 0.2s ease;
-}
-
-.combo-track {
-  height: 10px;
-  background: #0b0e24;
-  border: 2px solid var(--edge);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.combo-fill {
-  height: 100%;
-  width: 0%;
-  background: var(--magenta);
-  transition: width 0.1s linear, background 0.2s ease;
-}
-
-.stat-track {
-  height: 8px;
-  width: 70px;
-  background: #0b0e24;
-  border: 1px solid var(--edge);
-  border-radius: 4px;
-  overflow: hidden;
-  margin-top: 4px;
-}
-
-.stat-fill {
-  height: 100%;
-  width: 0%;
-  transition: width 0.2s ease;
-}
-
-.xp-fill { background: var(--gold); }
-.mp-fill { 
-  background: var(--cyan); 
-  transition: width 0.1s linear, background 0.2s ease; 
-}
-.mp-empty { background: var(--danger); }
-
-.tagline {
-  margin: 12px 2px 16px;
-  font-size: 16px;
-  color: var(--text-dim);
-  max-width: 60ch;
-}
-
-.arena {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 0;
-  border-radius: 10px;
-  background: rgba(11, 14, 36, 0.4);
-  overflow: hidden;
-}
-
-@media (max-width: 520px) {
-  :root { --enemy-w: 100px; }
-  .cabinet { padding: 12px 14px 10px; }
-}
-
-.enemy {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: var(--enemy-w);
-  aspect-ratio: 1 / 1;
-  will-change: transform;
-  cursor: var(--cursor-blade-pointer);
-}
-
-.enemy-inner {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: var(--panel-alt);
-  border: 2px solid var(--edge);
-  overflow: hidden;
-  position: relative;
-  user-select: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
-}
-
-.enemy:hover .enemy-inner {
-  border-color: var(--gold);
-  box-shadow: 0 0 0 1px rgba(244,201,93,0.25), 0 8px 20px rgba(0,0,0,0.4);
-  transform: scale(1.05);
-}
-
-.enemy:active .enemy-inner { transform: scale(1); }
-.enemy-inner.is-hit { animation: hitflash 0.16s ease; }
-.enemy-inner.is-defeated { animation: defeatpop 0.32s ease forwards; }
-.enemy.is-defeated { pointer-events: none; }
-.enemy-inner.is-spawning { animation: spawnin 0.28s ease; }
-
-.enemy-name {
-  position: absolute;
-  left: 50%;
-  bottom: 100%;
-  transform: translate(-50%, -6px);
-  margin: 0;
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: rgba(10, 14, 39, 0.88);
-  border: 1px solid var(--edge);
-  font-size: 13px;
-  color: var(--text-dim);
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease, transform 0.15s ease;
-  z-index: 5;
-}
-
-.enemy:hover .enemy-name,
-.enemy:focus-visible .enemy-name {
-  opacity: 1;
-  transform: translate(-50%, -10px);
-}
-
-.enemy-pips {
-  position: absolute;
-  left: 50%;
-  bottom: 6px;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(10, 14, 39, 0.55);
-  z-index: 4;
-}
-
-@keyframes hitflash {
-  0% { transform: scale(1); }
-  35% { transform: scale(0.94) rotate(-1deg); }
-  100% { transform: scale(1); }
-}
-
-@keyframes defeatpop {
-  0% { transform: scale(1); opacity: 1; filter: brightness(1); }
-  40% { transform: scale(1.08); filter: brightness(1.7); }
-  100% { transform: scale(0.4); opacity: 0; filter: brightness(2.2); }
-}
-
-@keyframes spawnin {
-  0% { transform: scale(0.5); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-.enemy-portrait-wrap {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: #0b0e24;
-}
-
-.enemy-portrait {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  pointer-events: none;
-}
-
-.pip {
-  width: 9px;
-  height: 9px;
-  border: 2px solid var(--edge);
-  background: transparent;
-  transform: rotate(45deg);
-  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.pip.filled {
-  background: var(--pip-color, var(--magenta));
-  border-color: var(--pip-color, var(--magenta));
-  box-shadow: 0 0 6px var(--pip-color, var(--magenta));
-}
-
-.floater {
-  position: absolute;
-  left: 50%;
-  top: 8px;
-  transform: translateX(-50%);
-  font-family: var(--font-display);
-  font-size: 18px;
-  color: var(--gold);
-  pointer-events: none;
-  animation: floatup 0.7s ease forwards;
-  white-space: nowrap;
-  z-index: 6;
-  text-shadow: 0 0 8px rgba(244,201,93,0.6);
-}
-
-@keyframes floatup {
-  0% { opacity: 1; top: 8px; }
-  100% { opacity: 0; top: -22px; }
-}
-
-.star-particle {
-  position: absolute;
-  width: var(--size, 12px);
-  height: var(--size, 12px);
-  left: var(--x, 50%);
-  top: var(--y, 50%);
-  background: var(--star-color, var(--gold));
-  clip-path: polygon(50% 0%, 61% 35%, 100% 50%, 61% 65%, 50% 100%, 39% 65%, 0% 50%, 39% 35%);
-  pointer-events: none;
-  transform: translate(-50%, -50%) scale(0.3) rotate(0deg);
-  animation: starburst 0.55s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
-  animation-delay: var(--delay, 0ms);
-  filter: drop-shadow(0 0 4px rgba(255,255,255,0.55));
-  z-index: 7;
-}
-
-@keyframes starburst {
-  0% { transform: translate(-50%, -50%) scale(0.2) rotate(0deg); opacity: 0; }
-  15% { opacity: 1; }
-  100% {
-    transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px))) scale(var(--end-scale, 1)) rotate(var(--rot, 200deg));
-    opacity: 0;
+  function getSpellName(index) {
+    const tier = getMagicTier();
+    const suffixes = [
+      ['Fire', 'Fira', 'Firaga'],
+      ['Blizzard', 'Blizzara', 'Blizzaga'],
+      ['Thunder', 'Thundara', 'Thundaga'],
+      ['Reflect', 'Reflera', 'Reflega']
+    ];
+    return suffixes[index][tier - 1];
   }
-}
 
-.statusbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 12px;
-  margin-top: 4px;
-  border-top: 2px dashed var(--edge);
-  font-size: 15px;
-  color: var(--text-dim);
-}
+  function updatePlayerStats() {
+    const newLevel = Math.floor(Math.sqrt(playerXp / 50)) + 1;
+    if (newLevel > playerLevel) {
+      playerLevel = newLevel;
+      statusText.textContent = `Level Up! Reached Level ${playerLevel}.`;
+    }
+    
+    const xpForCurrent = 50 * Math.pow(playerLevel - 1, 2);
+    const xpForNext = 50 * Math.pow(playerLevel, 2);
+    const xpProgress = ((playerXp - xpForCurrent) / (xpForNext - xpForCurrent)) * 100;
 
-.statusbar strong { color: var(--gold); }
+    maxMp = 80 + (playerLevel * 20);
+    levelDisplayEl.textContent = playerLevel;
+    xpFillEl.style.width = `${Math.min(100, Math.max(0, xpProgress))}%`;
+    mpFillEl.style.width = `${(currentMp / maxMp) * 100}%`;
+  }
 
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(6, 8, 22, 0.88);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  z-index: 10;
-  cursor: var(--cursor-blade);
-}
+  function restoreMp(amount) {
+    currentMp = Math.min(maxMp, currentMp + amount);
+    mpFillEl.style.width = `${(currentMp / maxMp) * 100}%`;
+  }
 
-.overlay--hidden { display: none !important; }
+  function drainMp(amount) {
+    if (currentMp >= amount) {
+      currentMp -= amount;
+      mpFillEl.style.width = `${(currentMp / maxMp) * 100}%`;
+      return true;
+    }
+    mpFillEl.classList.add("mp-empty");
+    setTimeout(() => mpFillEl.classList.remove("mp-empty"), 200);
+    return false;
+  }
 
-.overlay-card {
-  background: var(--panel);
-  border: 3px solid var(--edge);
-  border-radius: 12px;
-  max-width: 420px;
-  width: 100%;
-  padding: 28px 24px;
-  text-align: center;
-  position: relative;
-}
+  // ================================================================
+  // AUDIO
+  // ================================================================
+  let audioCtx = null;
+  const audioElCache = new Map();
 
-.overlay-card::before {
-  content: "";
-  position: absolute;
-  top: -3px; left: -3px; right: -3px;
-  height: 6px;
-  background: linear-gradient(90deg, var(--magenta), var(--cyan) 50%, var(--gold));
-  border-radius: 12px 12px 0 0;
-}
+  function getAudioCtx() {
+    if (!audioCtx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) audioCtx = new Ctx();
+    }
+    if (audioCtx && audioCtx.state === "suspended") {
+      audioCtx.resume().catch(() => {});
+    }
+    return audioCtx;
+  }
 
-.overlay-card h1 {
-  font-family: var(--font-display);
-  font-size: 32px;
-  margin: 6px 0 16px;
-  color: var(--gold);
-  letter-spacing: 0.01em;
-  text-shadow: 0 0 18px rgba(244,201,93,0.35);
-}
+  function playSynthTone({ wave = "sine", freq = 440 }, { pitchMult = 1, duration = 0.1, volume = 0.16, sweep = 0.82 } = {}) {
+    const ctx = getAudioCtx();
+    if (!ctx || muted) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = wave;
+    const hz = freq * pitchMult;
+    osc.frequency.setValueAtTime(hz, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(hz * sweep, ctx.currentTime + duration);
+    gain.gain.setValueAtTime(volume, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + duration);
+  }
 
-.overlay-card p { font-size: 16px; line-height: 1.6; color: var(--text-dim); margin: 0 0 20px; }
-.final-score { font-size: 18px !important; color: var(--text) !important; }
-.final-score span { font-family: var(--font-display); color: var(--gold); font-size: 22px; }
-.new-best-note { color: var(--cyan) !important; margin-top: -10px !important; }
+  function playHtmlAudio(url, vol = 0.4) {
+    if (muted) return;
+    let pool = audioElCache.get(url);
+    if (!pool) { pool = []; audioElCache.set(url, pool); }
+    let audio = pool.find(a => a.paused || a.ended);
+    if (!audio) {
+      audio = new Audio(url);
+      pool.push(audio);
+    }
+    audio.currentTime = 0;
+    audio.volume = vol;
+    audio.play().catch(() => {});
+  }
 
-.btn {
-  font-family: var(--font-display);
-  font-size: 18px;
-  color: #0a0e27;
-  background: var(--gold);
-  border: none;
-  border-radius: 8px;
-  padding: 14px 24px;
-  cursor: var(--cursor-blade-pointer);
-  letter-spacing: 0.01em;
-  transition: transform 0.1s ease, background 0.15s ease;
-}
+  // ================================================================
+  // MENU / UI
+  // ================================================================
+  const localHigh = localStorage.getItem(HIGH_SCORE_KEY);
+  if (localHigh) highscoreEl.textContent = localHigh;
 
-.btn:hover { background: var(--cyan); }
-.btn:active { transform: scale(0.97); }
-.btn:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
-.enemy:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
+  function updateMuteBtn() {
+    muteBtn.setAttribute("aria-pressed", muted);
+    muteBtn.textContent = muted ? "🔇" : "🔊";
+  }
+  updateMuteBtn();
 
-.spell-menu {
-  position: fixed;
-  background: rgba(10, 14, 39, 0.95);
-  border: 2px solid var(--gold);
-  border-radius: 8px;
-  padding: 8px;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.6);
-  pointer-events: auto;
-  transform: translate(0, 0);
-}
+  muteBtn.addEventListener("click", () => {
+    muted = !muted;
+    localStorage.setItem(MUTED_KEY, muted ? "1" : "0");
+    updateMuteBtn();
+    if (!muted) getAudioCtx();
+  });
 
-.spell-item.selected {
-  background: var(--panel-alt);
-  color: var(--text);
-  box-shadow: 0 0 8px rgba(107, 198, 255, 0.4);
-  border-left: 4px solid var(--cyan);
-  padding-left: 12px;
-}
+  document.addEventListener("contextmenu", (e) => {
+    if (gameActive) {
+      e.preventDefault();
+      openSpellMenu(e.clientX, e.clientY);
+    }
+  });
 
-.barrier { position: absolute; border-radius: 50%; pointer-events: none; z-index: 2; }
+  const magicBtn = document.getElementById("magicBtn");
+  magicBtn.addEventListener("click", (e) => {
+    if (!gameActive) return;
+    e.stopPropagation();
+    openSpellMenu(window.innerWidth / 2 - 100, window.innerHeight - 200);
+  });
 
-.firaga-barrier {
-  background: radial-gradient(circle, rgba(255, 92, 92, 0.5) 0%, rgba(255, 92, 92, 0.1) 60%, transparent 80%);
-  border: 2px dashed #ff5c5c;
-  animation: spinFire 3s linear infinite;
-}
+  document.addEventListener("click", (e) => {
+    if (spellMenuOpen && !spellMenuEl.contains(e.target) && e.target !== magicBtn) {
+      closeSpellMenu();
+    }
+  });
 
-.blizzaga-barrier {
-  background: radial-gradient(circle, rgba(107, 198, 255, 0.4) 0%, rgba(107, 198, 255, 0.1) 60%, transparent 80%);
-  border: 2px solid #6bc6ff;
-  animation: pulseIce 1.5s ease-in-out infinite alternate;
-}
+  spellMenuEl.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    if (e.deltaY > 0) cycleSpell(1);
+    else cycleSpell(-1);
+  });
 
-.reflega-barrier {
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, rgba(200, 200, 255, 0.2) 60%, transparent 80%);
-  border: 2px solid #ffffff;
-  box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
-  animation: pulseReflect 1s ease-in-out infinite alternate;
-}
+  function openSpellMenu(x, y) {
+    spellMenuOpen = true;
+    spellMenuEl.classList.remove("overlay--hidden");
+    
+    const items = spellMenuEl.querySelectorAll(".spell-item");
+    items.forEach((el, i) => {
+      el.textContent = getSpellName(i);
+      el.classList.toggle("selected", i === currentSpellIndex);
+    });
 
-.thundaga-bolt {
-  position: absolute;
-  background: linear-gradient(to bottom, #ffffff, #f4c95d 80%, transparent);
-  box-shadow: 0 0 15px varIt looks like you're referring to some code from a previous conversation, but I don't have access to that context right now. 
+    const mw = spellMenuEl.offsetWidth;
+    const mh = spellMenuEl.offsetHeight;
+    const tx = Math.max(10, Math.min(x, window.innerWidth - mw - 10));
+    const ty = Math.max(10, Math.min(y, window.innerHeight - mh - 10));
+    spellMenuEl.style.transform = `translate(${tx}px, ${ty}px)`;
+  }
 
-Could you please paste the code you are working on here and let me know what needs to be fixed or what you want it to do?
+  function closeSpellMenu() {
+    spellMenuOpen = false;
+    spellMenuEl.classList.add("overlay--hidden");
+  }
+
+  function cycleSpell(dir) {
+    currentSpellIndex = (currentSpellIndex + dir + BASE_SPELLS.length) % BASE_SPELLS.length;
+    const items = spellMenuEl.querySelectorAll(".spell-item");
+    items.forEach((el, i) => el.classList.toggle("selected", i === currentSpellIndex));
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (!gameActive) return;
+    if (e.key >= '1' && e.key <= '4') {
+      const idx = parseInt(e.key) - 1;
+      currentSpellIndex = idx;
+      castSpell(idx);
+    }
+  });
+
+
+  // ================================================================
+  // MAGIC LOGIC
+  // ================================================================
+  function castSpell(spellIndex) {
+    if (spellMenuOpen) closeSpellMenu();
+    
+    const magicTier = getMagicTier();
+    const cost = BASE_SPELL_COSTS[spellIndex];
+    if (!drainMp(cost)) {
+      statusText.textContent = "Not enough MP!";
+      playSynthTone({ wave: "sawtooth", freq: 110 }, { duration: 0.1, sweep: 0.9, pitchMult: 1 });
+      return;
+    }
+
+    const sName = getSpellName(spellIndex);
+    statusText.textContent = `Cast ${sName}!`;
+    playSynthTone({ wave: "sine", freq: 600 + (spellIndex*100) }, { duration: 0.2, pitchMult: 1.5, sweep: 2.0 });
+
+    if (spellIndex === 0) {
+      spawnBarrier('firaga', 120 + (magicTier * 20), magicTier);
+    } else if (spellIndex === 1) {
+      spawnBarrier('blizzaga', 180 + (magicTier * 40), magicTier);
+    } else if (spellIndex === 2) {
+      castThunder(magicTier);
+    } else if (spellIndex === 3) {
+      spawnBarrier('reflega', 120 + (magicTier * 20), magicTier);
+    }
+  }
+
+  function spawnBarrier(type, durationFrames, tier) {
+    const el = document.createElement("div");
+    el.className = `barrier ${type}-barrier`;
+    const radius = type === 'blizzaga' ? (120 + tier * 30) : (80 + tier * 20);
+    el.style.width = `${radius * 2}px`;
+    el.style.height = `${radius * 2}px`;
+    el.style.left = `${mouseX - radius}px`;
+    el.style.top = `${mouseY - radius}px`;
+    arena.appendChild(el);
+
+    const b = { type, el, x: mouseX, y: mouseY, radius, framesLeft: durationFrames, tier };
+    activeBarriers.push(b);
+  }
+
+  function castThunder(tier) {
+    const targets = [...slots].filter(s => s.hp > 0 && !s.locked).slice(0, 2 + tier);
+    
+    targets.forEach(slot => {
+      const w = slot.w || slot.el.offsetWidth;
+      const h = slot.h || slot.el.offsetHeight;
+      const tcx = slot.x + w/2;
+      const tcy = slot.y + h/2;
+
+      const bolt = document.createElement("div");
+      bolt.className = "thundaga-bolt";
+      bolt.style.width = "40px";
+      bolt.style.height = "150%";
+      bolt.style.left = `${tcx - 20}px`;
+      bolt.style.bottom = `${arena.offsetHeight - tcy}px`;
+      arena.appendChild(bolt);
+
+      setTimeout(() => bolt.remove(), 300);
+      handleHit(slot, { clientX: tcx + arena.getBoundingClientRect().left, clientY: tcy + arena.getBoundingClientRect().top });
+    });
+  }
+
+  function updateBarriers() {
+    for (let i = activeBarriers.length - 1; i >= 0; i--) {
+      const b = activeBarriers[i];
+      b.framesLeft--;
+      if (b.framesLeft <= 0) {
+        b.el.remove();
+        activeBarriers.splice(i, 1);
+        continue;
+      }
+      if (b.type === 'firaga') {
+        b.el.style.left = `${mouseX - b.radius}px`;
+        b.el.style.top = `${mouseY - b.radius}px`;
+        b.x = mouseX;
+        b.y = mouseY;
+        checkBarrierCollisions(b);
+      } else if (b.type === 'blizzaga') {
+        checkBarrierCollisions(b);
+      }
+    }
+  }
+
+  function checkBarrierCollisions(b) {
+    for (const slot of slots) {
+      if (slot.hp <= 0 || slot.locked) continue;
+      const w = slot.w || slot.el.offsetWidth;
+      const h = slot.h || slot.el.offsetHeight;
+      const scx = slot.x + w / 2;
+      const scy = slot.y + h / 2;
+      const dist = Math.hypot(b.x - scx, b.y - scy);
+      
+      if (dist < (b.radius + w/2)) {
+        if (b.type === 'firaga') {
+          if (!slot.fireCooldown) {
+            handleHit(slot, { clientX: b.x + arena.getBoundingClientRect().left, clientY: b.y + arena.getBoundingClientRect().top });
+            slot.fireCooldown = 30;
+          }
+        } else if (b.type === 'blizzaga') {
+          slot.freezeTimer = 180 + (b.tier * 60);
+          slot.inner.classList.add("is-frozen");
+        }
+      }
+    }
+  }
+
+  // ================================================================
+  // GAMEPLAY / COMBAT
+  // ================================================================
+  function getActiveTier() {
+    let t = COMBO_TIERS[0];
+    for (const c of COMBO_TIERS) {
+      if (combo >= c.min) t = c;
+    }
+    return t;
+  }
+
+  function handleHit(slot, event) {
+    if (slot.locked) return;
+    
+    getAudioCtx();
+    const typeDef = window.ENEMY_TYPES[slot.type] || window.ENEMY_TYPES.SHADOW;
+    const tier = getActiveTier();
+
+    slot.inner.classList.remove("is-hit");
+    void slot.inner.offsetWidth;
+    slot.inner.classList.add("is-hit");
+
+    playHtmlAudio(typeDef.sfx.hit, 0.4);
+    playSynthTone({ wave: "triangle", freq: 440 + Math.random() * 200 }, { duration: 0.15, sweep: 1.5 });
+
+    slot.hp -= 1;
+    updatePips(slot);
+    spawnHitEffect(event.clientX, event.clientY, tier.color);
+
+    if (slot.hp <= 0) {
+      destroyEnemy(slot);
+    }
+  }
+
+  function breakCombo(reason = "Combo dropped!") {
+    if (combo > 0) {
+      statusText.textContent = reason;
+      combo = 0;
+      comboCountEl.textContent = `×${combo}`;
+      comboCountEl.style.color = "var(--magenta)";
+      comboFillEl.style.width = "0%";
+      playSynthTone({ wave: "sawtooth", freq: 150 }, { duration: 0.3, sweep: 0.5 });
+    }
+  }
+
+  function updateComboTick() {
+    if (!gameActive || combo === 0) {
+      comboFillEl.style.width = "0%";
+      return;
+    }
+    const now = performance.now();
+    const elapsed = now - lastKillAt;
+    const remaining = COMBO_WINDOW_MS - elapsed;
+    if (remaining <= 0) {
+      breakCombo();
+    } else {
+      const pct = (remaining / COMBO_WINDOW_MS) * 100;
+      comboFillEl.style.width = `${pct}%`;
+    }
+  }
+
+  function getEnemyScore(type) {
+    const typeDef = window.ENEMY_TYPES[type] || window.ENEMY_TYPES.SHADOW;
+    return typeDef.baseScore || HIT_BASE_SCORE;
+  }
+
+  function updateScore(amount) {
+    score += amount;
+    scoreEl.textContent = score;
+    scoreEl.style.transform = "scale(1.3)";
+    setTimeout(() => { scoreEl.style.transform = "scale(1)"; }, 150);
+  }
+
+  function destroyEnemy(slot) {
+    const typeDef = window.ENEMY_TYPES[slot.type] || window.ENEMY_TYPES.SHADOW;
+    slot.locked = true;
+    slot.inner.classList.remove("is-hit");
+    slot.inner.classList.add("is-defeated");
+    slot.el.classList.add("is-defeated");
+
+    playHtmlAudio(typeDef.sfx.defeat, 0.6);
+    playSynthTone({ wave: "square", freq: 110 }, { duration: 0.25, sweep: 0.5 });
+
+    combo++;
+    lastKillAt = performance.now();
+    
+    playerXp += typeDef.xpValue || 5;
+    updatePlayerStats();
+    restoreMp(5 + getMagicTier());
+
+    const tier = getActiveTier();
+    comboCountEl.textContent = `×${combo}`;
+    comboCountEl.style.color = tier.color;
+
+    const gained = getEnemyScore(slot.type) * tier.mult;
+    updateScore(gained);
+
+    const rect = slot.el.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const topY = rect.top;
+    
+    spawnFloatingText(centerX, topY, `+${gained}`, tier.color);
+
+    const nSparks = prefersReducedMotion ? 0 : (3 + Math.floor(combo / 10));
+    spawnDefeatSparks(centerX, rect.top + rect.height / 2, tier.color, nSparks);
+
+    statusText.textContent = `Defeated ${typeDef.name}!`;
+
+    setTimeout(() => {
+      slot.el.remove();
+      if (gameActive) respawnSlot(slot);
+    }, 400);
+  }
+
+  function spawnHitEffect(x, y, color) {
+    if (prefersReducedMotion) return;
+    const flash = document.createElement("div");
+    flash.style.position = "fixed";
+    flash.style.left = `${x}px`;
+    flash.style.top = `${y}px`;
+    flash.style.width = "40px";
+    flash.style.height = "40px";
+    flash.style.background = `radial-gradient(circle, #fff 10%, ${color} 40%, transparent 70%)`;
+    flash.style.borderRadius = "50%";
+    flash.style.transform = "translate(-50%, -50%) scale(0.2)";
+    flash.style.pointerEvents = "none";
+    flash.style.zIndex = "99";
+    document.body.appendChild(flash);
+
+    flash.animate([
+      { transform: "translate(-50%, -50%) scale(0.2)", opacity: 1 },
+      { transform: "translate(-50%, -50%) scale(1.5)", opacity: 0 }
+    ], { duration: 250, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" }).onfinish = () => flash.remove();
+  }
+
+  function spawnFloatingText(x, y, text, color) {
+    if (prefersReducedMotion) return;
+    const f = document.createElement("div");
+    f.className = "floater";
+    f.textContent = text;
+    f.style.color = color;
+    f.style.left = `${x}px`;
+    f.style.top = `${y}px`;
+    document.body.appendChild(f);
+    setTimeout(() => f.remove(), 750);
+  }
+
+  function spawnDefeatSparks(cx, cy, color, count) {
+    if (prefersReducedMotion) return;
+    for (let i = 0; i < count; i++) {
+      const spark = document.createElement("div");
+      spark.className = "star-particle";
+      spark.style.setProperty("--star-color", color);
+      spark.style.setProperty("--x", `${cx}px`);
+      spark.style.setProperty("--y", `${cy}px`);
+      
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 30 + Math.random() * 50;
+      spark.style.setProperty("--dx", `${Math.cos(angle) * dist}px`);
+      spark.style.setProperty("--dy", `${Math.sin(angle) * dist}px`);
+      spark.style.setProperty("--rot", `${-100 + Math.random() * 200}deg`);
+      spark.style.setProperty("--end-scale", `${0.2 + Math.random() * 0.4}`);
+      spark.style.setProperty("--size", `${8 + Math.random() * 6}px`);
+      spark.style.setProperty("--delay", `${Math.random() * 50}ms`);
+      
+      document.body.appendChild(spark);
+      setTimeout(() => spark.remove(), 600);
+    }
+  }
+
+  // ================================================================
+  // ENEMY MOVEMENT & ATTACKS
+  // ================================================================
+  function createEnemyEl(type) {
+    const typeDef = window.ENEMY_TYPES[type] || window.ENEMY_TYPES.SHADOW;
+    const wrap = document.createElement("div");
+    wrap.className = "enemy";
+    wrap.style.setProperty("--pip-color", typeDef.color || "var(--magenta)");
+
+    const inner = document.createElement("div");
+    inner.className = "enemy-inner is-spawning";
+    inner.addEventListener("animationend", (e) => {
+      if (e.animationName === "spawnin") inner.classList.remove("is-spawning");
+    });
+
+    const imgWrap = document.createElement("div");
+    imgWrap.className = "enemy-portrait-wrap";
+
+    const img = document.createElement("img");
+    img.src = typeDef.img;
+    img.className = "enemy-portrait";
+    img.draggable = false;
+    img.alt = "";
+
+    const nameLab = document.createElement("div");
+    nameLab.className = "enemy-name";
+    nameLab.textContent = typeDef.name;
+
+    const pips = document.createElement("div");
+    pips.className = "enemy-pips";
+    const hp = typeDef.maxHp || 3;
+    for (let i = 0; i < hp; i++) {
+      const p = document.createElement("div");
+      p.className = "pip filled";
+      pips.appendChild(p);
+    }
+
+    imgWrap.appendChild(img);
+    inner.appendChild(imgWrap);
+    wrap.appendChild(inner);
+    wrap.appendChild(nameLab);
+    wrap.appendChild(pips);
+
+    return wrap;
+  }
+
+  function updatePips(slot) {
+    const pips = slot.el.querySelectorAll(".pip");
+    pips.forEach((p, idx) => { p.classList.toggle("filled", idx < slot.hp); });
+  }
+
+  function getRandomType() {
+    const keys = Object.keys(window.ENEMY_TYPES);
+    let r = Math.random();
+    
+    let wsum = 0;
+    const weights = [];
+    for (const k of keys) {
+      const w = window.ENEMY_TYPES[k].spawnWeight || 1;
+      wsum += w;
+      weights.push({ k, w: wsum });
+    }
+    
+    const target = r * wsum;
+    for (const item of weights) {
+      if (target <= item.w) return item.k;
+    }
+    return keys[0];
+  }
+
+  function spawnSlot(idx) {
+    const type = getRandomType();
+    const typeDef = window.ENEMY_TYPES[type] || window.ENEMY_TYPES.SHADOW;
+    const el = createEnemyEl(type);
+    arena.appendChild(el);
+
+    const aw = arena.clientWidth;
+    const ah = arena.clientHeight;
+    
+    const compW = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--enemy-w')) || 128;
+    const safeW = aw - compW;
+    const safeH = ah - compW;
+
+    const x = Math.max(0, Math.min(Math.random() * safeW, safeW));
+    const y = Math.max(0, Math.min(Math.random() * safeH, safeH));
+
+    const angle = Math.random() * Math.PI * 2;
+    const speed = (typeDef.speed || 50) + Math.random() * 30;
+    
+    const slotObj = {
+      idx, type, el, inner: el.querySelector(".enemy-inner"),
+      x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+      hp: typeDef.maxHp || 3, locked: false,
+      w: compW, h: compW, fireCooldown: 0, freezeTimer: 0,
+      attackTimer: 3 + Math.random() * 4 // Attack cooldown
+    };
+
+    el.addEventListener("mousedown", (e) => {
+      if (e.button !== 0 || !gameActive) return;
+      handleHit(slotObj, e);
+    });
+
+    slots[idx] = slotObj;
+  }
+
+  function respawnSlot(oldSlot) {
+    if (oldSlot && oldSlot.el && oldSlot.el.parentNode) {
+      oldSlot.el.remove();
+    }
+    spawnSlot(oldSlot.idx);
+  }
+
+  // Enemy Attacks Loop
+  function updateEnemyAttacks(dt) {
+    for (const slot of slots) {
+      if (slot.hp <= 0 || slot.locked || slot.freezeTimer > 0) continue;
+
+      slot.attackTimer -= dt;
+      if (slot.attackTimer <= 0) {
+        slot.attackTimer = 4 + Math.random() * 3;
+        triggerEnemyAttack(slot);
+      }
+    }
+  }
+
+  function triggerEnemyAttack(slot) {
+    const w = slot.w || slot.el.offsetWidth;
+    const h = slot.h || slot.el.offsetHeight;
+    const scx = slot.x + w / 2;
+    const scy = slot.y + h / 2;
+
+    slot.inner.classList.add("is-charging-attack");
+    playHtmlAudio(window.ENEMY_TYPES[slot.type].sfx.hit, 0.2); // Telegaph sound
+
+    setTimeout(() => {
+      if (!gameActive || slot.hp <= 0) return;
+      slot.inner.classList.remove("is-charging-attack");
+
+      const bullet = document.createElement("div");
+      bullet.className = "enemy-projectile";
+      bullet.style.left = scx + "px";
+      bullet.style.top = scy + "px";
+      arena.appendChild(bullet);
+
+      const targetX = mouseX;
+      const targetY = mouseY;
+      const angle = Math.atan2(targetY - scy, targetX - scx);
+      
+      activeProjectiles.push({
+        el: bullet,
+        x: scx,
+        y: scy,
+        vx: Math.cos(angle) * 350, // pixels per second
+        vy: Math.sin(angle) * 350,
+        reflected: false
+      });
+      playSynthTone({ wave: "square", freq: 800 }, { duration: 0.1, sweep: 0.5 });
+    }, 800);
+  }
+
+  function stepMovement(dt) {
+    if (!gameActive) return;
+
+    const aw = arena.clientWidth;
+    const ah = arena.clientHeight;
+
+    // 1. Move slots
+    for (let i = 0; i < slots.length; i++) {
+      const s = slots[i];
+      if (!s || s.locked) continue;
+
+      if (s.fireCooldown > 0) s.fireCooldown--;
+      if (s.freezeTimer > 0) {
+        s.freezeTimer--;
+        if (s.freezeTimer <= 0) {
+          s.inner.classList.remove("is-frozen");
+        }
+        s.el.style.transform = `translate(${s.x}px, ${s.y}px)`;
+        continue;
+      }
+
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      
+      s.w = s.el.offsetWidth || 128;
+      s.h = s.el.offsetHeight || 128;
+
+      let bounced = false;
+      if (s.x < 0) { s.x = 0; s.vx *= -1; bounced = true; }
+      else if (s.x + s.w > aw) { s.x = aw - s.w; s.vx *= -1; bounced = true; }
+      
+      if (s.y < 0) { s.y = 0; s.vy *= -1; bounced = true; }
+      else if (s.y + s.h > ah) { s.y = ah - s.h; s.vy *= -1; bounced = true; }
+
+      // Random drifting changes
+      if (!bounced && Math.random() < 0.02) {
+        const typeDef = window.ENEMY_TYPES[s.type];
+        const angle = Math.random() * Math.PI * 2;
+        const spd = (typeDef.speed || 50) + Math.random() * 30;
+        s.vx = Math.cos(angle) * spd;
+        s.vy = Math.sin(angle) * spd;
+      }
+
+      s.el.style.transform = `translate(${s.x}px, ${s.y}px)`;
+    }
+
+    // 2. Projectiles & Reflect Logic
+    const arenaRect = arena.getBoundingClientRect();
+    for (let i = activeProjectiles.length - 1; i >= 0; i--) {
+      const p = activeProjectiles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.el.style.left = p.x + 'px';
+      p.el.style.top = p.y + 'px';
+
+      let removed = false;
+
+      if (!p.reflected) {
+        // Check barrier reflection
+        for (const b of activeBarriers) {
+          if (b.type === 'reflega') {
+            if (Math.hypot(p.x - b.x, p.y - b.y) < b.radius) {
+              p.reflected = true;
+              p.el.classList.add('reflected');
+              p.vx = -p.vx * 1.5;
+              p.vy = -p.vy * 1.5;
+              playSynthTone({ wave: "triangle", freq: 1200 }, { duration: 0.1, sweep: 2.0 });
+              break;
+            }
+          }
+        }
+        
+        if (!p.reflected && Math.hypot(p.x - mouseX, p.y - mouseY) < 20) {
+          breakCombo("Hit by enemy attack!");
+          p.el.remove();
+          activeProjectiles.splice(i, 1);
+          removed = true;
+        }
+      } else {
+        // Check hitting enemies if reflected
+        for (const slot of slots) {
+          if (slot.hp <= 0 || slot.locked) continue;
+          const w = slot.w || slot.el.offsetWidth;
+          const h = slot.h || slot.el.offsetHeight;
+          if (Math.hypot(p.x - (slot.x + w/2), p.y - (slot.y + h/2)) < w/2) {
+            handleHit(slot, { clientX: p.x + arenaRect.left, clientY: p.y + arenaRect.top });
+            p.el.remove();
+            activeProjectiles.splice(i, 1);
+            removed = true;
+            break;
+          }
+        }
+      }
+
+      // Out of bounds
+      if (!removed && (p.x < 0 || p.x > aw || p.y < 0 || p.y > ah)) {
+        p.el.remove();
+        activeProjectiles.splice(i, 1);
+      }
+    }
+  }
+
+  function animationLoop(now) {
+    if (!gameActive) return;
+    
+    if (lastFrameTime === 0) lastFrameTime = now;
+    const dt = (now - lastFrameTime) / 1000; 
+    lastFrameTime = now;
+
+    const cappedDt = Math.min(dt, 0.05);
+
+    stepMovement(cappedDt);
+    updateEnemyAttacks(cappedDt);
+    updateBarriers();
+    
+    rafId = requestAnimationFrame(animationLoop);
+  }
+
+  // ================================================================
+  // GAME LIFECYCLE
+  // ================================================================
+  function startGame() {
+    startOverlay.classList.add("overlay--hidden");
+    endOverlay.classList.add("overlay--hidden");
+
+    score = 0;
+    timeLeft = ROUND_SECONDS;
+    combo = 0;
+    scoreEl.textContent = score;
+    timeEl.textContent = timeLeft;
+    timeEl.classList.remove("time-low");
+    comboCountEl.textContent = "×0";
+    comboCountEl.style.color = "var(--magenta)";
+    comboFillEl.style.width = "0%";
+    statusText.textContent = "Defeat the Heartless!";
+
+    arena.innerHTML = "";
+    slots = [];
+    activeBarriers = [];
+    
+    activeProjectiles.forEach(p => p.el.remove());
+    activeProjectiles = [];
+
+    getAudioCtx();
+    updatePlayerStats();
+    restoreMp(100);
+
+    // Initial Spawns
+    const w = window.innerWidth;
+    let spawnCount = 4;
+    if (w > 1200) spawnCount = 6;
+    else if (w > 800) spawnCount = 5;
+    
+    for (let i = 0; i < spawnCount; i++) {
+      spawnSlot(i);
+    }
+
+    gameActive = true;
+    lastFrameTime = 0;
+    
+    if (countdownTimer) clearInterval(countdownTimer);
+    countdownTimer = setInterval(() => {
+      timeLeft--;
+      if (timeLeft <= 10) timeEl.classList.add("time-low");
+      if (timeLeft >= 0) timeEl.textContent = timeLeft;
+      if (timeLeft <= 0) endGame();
+    }, 1000);
+
+    if (comboTickTimer) clearInterval(comboTickTimer);
+    comboTickTimer = setInterval(updateComboTick, 50);
+
+    rafId = requestAnimationFrame(animationLoop);
+  }
+
+  function endGame() {
+    gameActive = false;
+    clearInterval(countdownTimer);
+    clearInterval(comboTickTimer);
+    if (rafId) cancelAnimationFrame(rafId);
+    
+    if (spellMenuOpen) closeSpellMenu();
+    slots.forEach(s => {
+      if (!s.locked && s.el) {
+        s.el.style.pointerEvents = "none";
+        s.el.style.opacity = "0.5";
+      }
+    });
+
+    finalScoreEl.textContent = score;
+    const prevBest = parseInt(localStorage.getItem(HIGH_SCORE_KEY) || "0", 10);
+    
+    if (score > prevBest) {
+      localStorage.setItem(HIGH_SCORE_KEY, score);
+      highscoreEl.textContent = score;
+      newBestNote.classList.remove("overlay--hidden");
+      endHeading.textContent = "Outstanding!";
+      playSynthTone({ wave: "sine", freq: 660 }, { duration: 0.5, sweep: 1.5 });
+    } else {
+      newBestNote.classList.add("overlay--hidden");
+      endHeading.textContent = "Time's Up!";
+      playSynthTone({ wave: "square", freq: 300 }, { duration: 0.4, sweep: 0.7 });
+    }
+
+    localStorage.setItem(XP_KEY, playerXp);
+    
+    setTimeout(() => {
+      endOverlay.classList.remove("overlay--hidden");
+      restartBtn.focus();
+    }, 800);
+  }
+
+  startBtn.addEventListener("click", startGame);
+  restartBtn.addEventListener("click", startGame);
+
+})();
