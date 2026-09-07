@@ -844,25 +844,33 @@
     }
   });
 
-  // Click to cast 
-  document.addEventListener('click', (e) => {
-    if (!gameActive) return;
-    if (spellMenuOpen) {
+  // Click on a specific spell to cast it
+  spellMenuEl.addEventListener('click', (e) => {
+    if (!gameActive || !spellMenuOpen) return;
+    const clickedSpell = e.target.closest('.spell-item');
+    if (clickedSpell) {
       e.preventDefault();
       e.stopPropagation();
+      
+      const items = Array.from(spellMenuEl.querySelectorAll('.spell-item'));
+      currentSpellIndex = items.indexOf(clickedSpell);
+      
       spellMenuOpen = false;
       spellMenuEl.classList.add('overlay--hidden');
-      
-      // If the user tapped/clicked a specific spell item directly, select it before casting
-      const clickedSpell = e.target.closest('.spell-item');
-      if (clickedSpell) {
-        const items = Array.from(spellMenuEl.querySelectorAll('.spell-item'));
-        currentSpellIndex = items.indexOf(clickedSpell);
-      }
-      
       castSpell(currentSpellIndex);
     }
-  }, true);
+  });
+
+  // Click outside to dismiss the menu WITHOUT casting
+  document.addEventListener('click', (e) => {
+    if (!gameActive || !spellMenuOpen) return;
+    
+    // If the click is NOT inside the spell menu and NOT the magic button
+    if (!spellMenuEl.contains(e.target) && e.target.id !== 'magicBtn') {
+      spellMenuOpen = false;
+      spellMenuEl.classList.add('overlay--hidden');
+    }
+  });
 
   // ---------- Wire up ----------
   document.addEventListener("DOMContentLoaded", () => {
