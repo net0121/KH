@@ -724,7 +724,7 @@
     const prevBest = parseInt(localStorage.getItem(HIGH_SCORE_KEY) || "0", 10);
     
     if (score > prevBest) {
-      localStorage.setItem(HIGH_SCOR_KEY || HIGH_SCORE_KEY, score);
+      localStorage.setItem(HIGH_SCORE_KEY, score);
       highscoreEl.textContent = score;
       newBestNote.classList.remove("overlay--hidden");
       endHeading.textContent = "Outstanding!";
