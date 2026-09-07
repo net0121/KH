@@ -1,4 +1,3 @@
-// game.js
 (() => {
   "use strict";
 
@@ -8,6 +7,8 @@
   const HIGH_SCORE_KEY = "keyOfLightHighScore";
   const MUTED_KEY = "keyOfLightMuted";
   const XP_KEY = "keyOfLightXP";
+
+  const THUNDER_PNG_URL = "https://github.com/net0121/KH/blob/main/badthundaga.png?raw=true";
 
   const BASE_SPELLS = ['Fire', 'Blizzard', 'Thunder', 'Cure', 'Reflect', 'Magnet', 'Stop', 'Aero'];
   const BASE_SPELL_COSTS = [10, 15, 20, 18, 15, 22, 25, 20];
@@ -45,7 +46,7 @@
   const statusText = document.getElementById("statusText");
   const highscoreEl = document.getElementById("highscore");
   const muteBtn = document.getElementById("muteBtn");
-  const spellBtn = document.getElementById("spellBtn");
+  const magicBtn = document.getElementById("magicBtn");
 
   const startOverlay = document.getElementById("startOverlay");
   const endOverlay = document.getElementById("endOverlay");
@@ -430,6 +431,7 @@
     const arenaRect = arena.getBoundingClientRect();
     const now = performance.now();
 
+    // Active spell barriers logic
     activeBarriers.forEach(b => {
       if (b.type === 'firaga' || b.type === 'blizzaga' || b.type === 'reflega' || b.type === 'aeroga') {
         b.x = mouseX;
@@ -438,6 +440,7 @@
         b.el.style.top = (b.y - b.radius) + 'px';
       }
 
+      // Check Reflect against enemy projectiles
       if (b.type === 'reflega') {
         activeProjectiles.forEach(proj => {
           if (proj.reflected) return;
@@ -469,6 +472,7 @@
               slot.freezeTimer = 3000 + (b.tier * 2000);
             }
           } else if (b.type === 'aeroga') {
+            // Push enemy back and tick damage
             const angle = Math.atan2(scy - b.y, scx - b.x);
             slot.x += Math.cos(angle) * 180 * dt;
             slot.y += Math.sin(angle) * 180 * dt;
@@ -479,6 +483,7 @@
           }
         }
 
+        // Magnet vortex pull towards fixed center
         if (b.type === 'magnega') {
           if (dist < 420) {
             const pullSpeed = (420 - dist) * 1.8;
@@ -741,6 +746,7 @@
     activeBarriers.push(b);
 
     setTimeout(() => {
+      // Reflect barrier blast on expiration
       if (type === 'reflega') {
         const shatter = document.createElement('div');
         shatter.className = 'reflect-shatter';
@@ -824,9 +830,9 @@
         const bolt = document.createElement('div');
         bolt.className = 'thundaga-bolt';
         const w = slot.w || 100;
-        bolt.style.width = '12px';
+        bolt.style.width = '28px';
         bolt.style.height = '100%';
-        bolt.style.left = (slot.x + w / 2 - 6) + 'px';
+        bolt.style.left = (slot.x + w / 2 - 14) + 'px';
         bolt.style.top = '0';
         arena.appendChild(bolt);
 
@@ -866,11 +872,11 @@
     });
   }
 
-  function openSpellMenu() {
+  function openSpellMenu(clientX = mouseX, clientY = mouseY) {
     spellMenuOpen = true;
     updateSpellMenu();
-    spellMenuEl.style.left = `${Math.min(window.innerWidth - 160, mouseX + 20)}px`;
-    spellMenuEl.style.top = `${Math.min(window.innerHeight - 260, mouseY + 20)}px`;
+    spellMenuEl.style.left = `${Math.max(8, Math.min(window.innerWidth - 180, clientX + 16))}px`;
+    spellMenuEl.style.top = `${Math.max(8, Math.min(window.innerHeight - 300, clientY + 16))}px`;
     spellMenuEl.classList.remove('overlay--hidden');
   }
 
@@ -879,21 +885,7 @@
     spellMenuEl.classList.add('overlay--hidden');
   }
 
-  // Spell Button & Right-Click Shortcut Event Binds
-  if (spellBtn) {
-    spellBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      if (!gameActive) return;
-      castSpell(currentSpellIndex);
-    });
-  }
-
-  arena.addEventListener("contextmenu", (e) => {
-    e.preventDefault();
-    if (!gameActive) return;
-    castSpell(currentSpellIndex);
-  });
-
+  // Spell Menu Interaction
   spellMenuEl.addEventListener("click", (e) => {
     const item = e.target.closest(".spell-item");
     if (!item) return;
@@ -906,12 +898,21 @@
     }
   });
 
+  arena.addEventListener('contextmenu', (e) => {
+    if (!gameActive) return;
+    e.preventDefault();
+    const rect = arena.getBoundingClientRect();
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
+    openSpellMenu(e.clientX, e.clientY);
+  });
+
   window.addEventListener('keydown', (e) => {
     if (!gameActive) return;
 
     if (e.key === 'q' || e.key === 'Q') {
       if (spellMenuOpen) closeSpellMenu();
-      else openSpellMenu();
+      else openSpellMenu(e.clientX, e.clientY);
     } else if (spellMenuOpen) {
       if (e.key === 'ArrowDown') {
         currentSpellIndex = (currentSpellIndex + 1) % BASE_SPELLS.length;
@@ -1015,6 +1016,7 @@
       return;
     }
 
+    // Defeated!
     slot.locked = true;
     slot.inner.classList.add("is-defeated");
     slot.el.classList.add("is-defeated");
@@ -1143,6 +1145,11 @@
   }
 
   muteBtn.addEventListener("click", () => setMuted(!muted));
+  magicBtn.addEventListener("click", (e) => {
+    if (!gameActive) return;
+    const rect = magicBtn.getBoundingClientRect();
+    openSpellMenu(rect.left + rect.width / 2, rect.bottom);
+  });
   startBtn.addEventListener("click", startGame);
   restartBtn.addEventListener("click", startGame);
 
