@@ -788,7 +788,7 @@
 
     switch (spellIndex) {
       case 0: // Fire
-        spawnBarrier('firaga', 60 + tier * 20, tier);
+        spawnBarrier('firaga', 60 + tier * 23, tier);
         playSynthTone({ wave: "sawtooth", freq: 280 }, { pitchMult: 1.2, duration: 0.25, volume: 0.18, sweep: 0.6 });
         break;
       case 1: // Blizzard
