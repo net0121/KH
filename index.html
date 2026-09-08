@@ -9,7 +9,7 @@
 <body>
   <div class="cabinet">
     <div class="topbar">
-      <div class="topbar-brand">THE KEY</div>
+      <div class="topbar-brand">KH Test</div>
       <button id="muteBtn" class="mute-btn" type="button" aria-label="Mute sound">🔊</button>
     </div>
 
@@ -53,7 +53,13 @@
       </div>
     </header>
 
-    <div id="arena" class="arena"></div>
+    <div class="arena-wrap">
+      <div id="bossBar" class="boss-bar overlay--hidden">
+        <div id="bossName" class="boss-bar-name">Boss</div>
+        <div class="boss-bar-track"><div id="bossBarFill" class="boss-bar-fill"></div></div>
+      </div>
+      <div id="arena" class="arena"></div>
+    </div>
 
     <footer class="statusbar">
       <span id="statusText">Select or press Magic button to cast spells!</span>
