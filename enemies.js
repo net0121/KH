@@ -322,6 +322,7 @@ const BOSS_ROSTER = [
     image: "https://placehold.co/420x420/141a3d/ff2d55?text=NIGHTMARE%0ACOLOSSUS&font=raleway",
     isBoss: true,
     points: 4500,
+    BOSS_KILL_INTERVAL = 80,
     tint: "#ff2d55",
     speed: 36,
     hp: 54,
