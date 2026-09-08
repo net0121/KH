@@ -47,6 +47,10 @@
                                    is still near that spot when the bolt
                                    arrives, it hits and damages your HP —
                                    move away in time and it whiffs.
+                                   Optional "projectileCount" (default 1)
+                                   fires that many bolts in a staggered
+                                   burst, each re-aimed at the cursor's
+                                   position at the moment it's launched.
                  color       - CSS color for the telegraph ring/glow (and,
                                for "projectile", the bolt itself)
                  telegraph   - windup duration in ms before the attack fires
@@ -212,9 +216,10 @@ const ENEMY_ROSTER = [
       type: "projectile",
       color: "#ff4d6d",
       telegraph: 700,
-      cooldownMin: 5500,
-      cooldownMax: 9000,
-      power: 14 // HP damage on a landed hit
+      cooldownMin: 4000,
+      cooldownMax: 6500,
+      power: 14, // HP damage on a landed hit
+      projectileCount: 3 // fires a 3-shot burst instead of a single bolt
     }
   }
 ];
