@@ -5,8 +5,13 @@
   const COMBO_WINDOW_MS = 5000;
   const HIT_BASE_SCORE = 3;
   const HIGH_SCORE_KEY = "keyOfLightHighScore";
+  const ENDLESS_HIGH_SCORE_KEY = "keyOfLightEndlessHighScore";
   const MUTED_KEY = "keyOfLightMuted";
   const XP_KEY = "keyOfLightXP";
+
+  const ENDLESS_DIFFICULTY_INTERVAL_S = 20; // ramp difficulty every N seconds survived
+  const ENDLESS_DIFFICULTY_STEP = 0.15;     // +15% speed / attack frequency per ramp
+  const ENDLESS_DIFFICULTY_CAP = 2.5;       // hard ceiling on the multiplier
 
   const THUNDER_PNG_URL = "https://github.com/net0121/KH/blob/main/badthundaga.png?raw=true";
 
@@ -41,20 +46,27 @@
   const arena = document.getElementById("arena");
   const scoreEl = document.getElementById("score");
   const timeEl = document.getElementById("time");
+  const timeLabelEl = document.getElementById("timeLabel");
   const comboCountEl = document.getElementById("comboCount");
   const comboFillEl = document.getElementById("comboFill");
   const statusText = document.getElementById("statusText");
   const highscoreEl = document.getElementById("highscore");
+  const highscoreLabelEl = document.getElementById("highscoreLabel");
   const muteBtn = document.getElementById("muteBtn");
   const magicBtn = document.getElementById("magicBtn");
 
   const startOverlay = document.getElementById("startOverlay");
   const endOverlay = document.getElementById("endOverlay");
-  const startBtn = document.getElementById("startBtn");
+  const startTimedBtn = document.getElementById("startTimedBtn");
+  const startEndlessBtn = document.getElementById("startEndlessBtn");
+  const timedLockNote = document.getElementById("timedLockNote");
   const restartBtn = document.getElementById("restartBtn");
+  const menuBtn = document.getElementById("menuBtn");
   const endHeading = document.getElementById("endHeading");
   const finalScoreEl = document.getElementById("finalScore");
   const newBestNote = document.getElementById("newBestNote");
+  const survivalNote = document.getElementById("survivalNote");
+  const survivalTimeEl = document.getElementById("survivalTime");
 
   const spellMenuEl = document.getElementById("spellMenu");
   const levelDisplayEl = document.getElementById("levelDisplay");
@@ -67,6 +79,9 @@
   let combo = 0;
   let lastKillAt = 0;
   let gameActive = false;
+  let gameMode = "timed"; // "timed" | "endless"
+  let survivalSeconds = 0;
+  let endlessDifficulty = 0;
   let countdownTimer = null;
   let comboTickTimer = null;
   let rafId = null;
@@ -318,25 +333,56 @@
     muteBtn.setAttribute("aria-pressed", String(muted));
   }
 
-  function loadHighScore() {
-    const stored = Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0;
+  function loadHighScore(mode = gameMode) {
+    const key = mode === "endless" ? ENDLESS_HIGH_SCORE_KEY : HIGH_SCORE_KEY;
+    const stored = Number(localStorage.getItem(key)) || 0;
     highscoreEl.textContent = stored;
     return stored;
   }
 
-  function startGame() {
+  function isMobileDevice() {
+    const coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+    const noHover = window.matchMedia && window.matchMedia("(hover: none)").matches;
+    if (coarse && noHover) return true;
+    return /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent || "");
+  }
+
+  function applyModeLock() {
+    const locked = isMobileDevice();
+    startTimedBtn.disabled = locked;
+    startTimedBtn.classList.toggle("mode-btn--locked", locked);
+    timedLockNote.classList.toggle("overlay--hidden", !locked);
+  }
+
+  function startGame(requestedMode) {
+    let resolvedMode = requestedMode === "endless" ? "endless" : "timed";
+    // Timed Hunt is a PC-only mode; force Endless on touch/mobile devices
+    // even if something manages to trigger the timed button directly.
+    if (resolvedMode === "timed" && isMobileDevice()) {
+      resolvedMode = "endless";
+    }
+    gameMode = resolvedMode;
+
     gameActive = true;
     score = 0;
     timeLeft = ROUND_SECONDS;
+    survivalSeconds = 0;
+    endlessDifficulty = 0;
     combo = 0;
     lastKillAt = performance.now();
     currentHp = maxHp;
     currentMp = maxMp;
 
     scoreEl.textContent = "0";
-    timeEl.textContent = String(timeLeft);
+    timeLabelEl.textContent = gameMode === "endless" ? "SURVIVED" : "TIME";
+    highscoreLabelEl.textContent = gameMode === "endless" ? "BEST (ENDLESS)" : "HIGH SCORE";
+    loadHighScore(gameMode);
+    timeEl.textContent = gameMode === "endless" ? "0" : String(timeLeft);
     timeEl.classList.remove("time-low");
-    statusText.textContent = "Select or press Magic button to cast spells!";
+    statusText.textContent =
+      gameMode === "endless"
+        ? "Endless Hunt: survive as long as you can!"
+        : "Select or press Magic button to cast spells!";
 
     updateHpFill();
     updatePlayerStats();
@@ -354,10 +400,24 @@
     if (rafId) cancelAnimationFrame(rafId);
 
     countdownTimer = setInterval(() => {
-      timeLeft -= 1;
-      timeEl.textContent = String(Math.max(0, timeLeft));
-      timeEl.classList.toggle("time-low", timeLeft <= 10);
-      if (timeLeft <= 0) endGame();
+      if (gameMode === "timed") {
+        timeLeft -= 1;
+        timeEl.textContent = String(Math.max(0, timeLeft));
+        timeEl.classList.toggle("time-low", timeLeft <= 10);
+        if (timeLeft <= 0) endGame();
+      } else {
+        survivalSeconds += 1;
+        timeEl.textContent = String(survivalSeconds);
+        if (
+          survivalSeconds % ENDLESS_DIFFICULTY_INTERVAL_S === 0 &&
+          endlessDifficulty < ENDLESS_DIFFICULTY_CAP
+        ) {
+          endlessDifficulty = Math.min(
+            ENDLESS_DIFFICULTY_CAP,
+            endlessDifficulty + ENDLESS_DIFFICULTY_STEP
+          );
+        }
+      }
     }, 1000);
 
     comboTickTimer = setInterval(() => {
@@ -381,16 +441,25 @@
     if (rafId) cancelAnimationFrame(rafId);
     closeSpellMenu();
 
-    const storedHigh = loadHighScore();
+    const storedHigh = loadHighScore(gameMode);
     const isNewBest = score > storedHigh;
     if (isNewBest) {
-      localStorage.setItem(HIGH_SCORE_KEY, String(score));
+      const key = gameMode === "endless" ? ENDLESS_HIGH_SCORE_KEY : HIGH_SCORE_KEY;
+      localStorage.setItem(key, String(score));
       highscoreEl.textContent = String(score);
     }
 
     endHeading.textContent = message || "TIME'S UP!";
     finalScoreEl.textContent = String(score);
     newBestNote.classList.toggle("overlay--hidden", !isNewBest);
+
+    if (gameMode === "endless") {
+      survivalTimeEl.textContent = String(survivalSeconds);
+      survivalNote.classList.remove("overlay--hidden");
+    } else {
+      survivalNote.classList.add("overlay--hidden");
+    }
+
     endOverlay.classList.remove("overlay--hidden");
   }
 
@@ -469,7 +538,11 @@
   function randomAttackInterval(enemy) {
     if (!enemy || !enemy.attack) return Infinity;
     const { cooldownMin = 5000, cooldownMax = 9000 } = enemy.attack;
-    return cooldownMin + Math.random() * (cooldownMax - cooldownMin);
+    const base = cooldownMin + Math.random() * (cooldownMax - cooldownMin);
+    if (gameMode === "endless" && endlessDifficulty > 0) {
+      return base / (1 + endlessDifficulty * 0.6);
+    }
+    return base;
   }
 
   function updatePips(slot) {
@@ -526,7 +599,11 @@
   }
 
   function randomVelocityFor(slot) {
-    const speed = (slot.enemy && slot.enemy.speed) || 60;
+    const baseSpeed = (slot.enemy && slot.enemy.speed) || 60;
+    const speed =
+      gameMode === "endless" && endlessDifficulty > 0
+        ? baseSpeed * (1 + endlessDifficulty)
+        : baseSpeed;
     slot.wanderRate = 0.6 + Math.random() * 1.4;
     if (prefersReducedMotion) {
       slot.vx = 0;
@@ -872,6 +949,16 @@ function stepMovement(dt) {
         break;
       }
       case "time-steal": {
+        if (gameMode === "endless") {
+          // Doesn't make sense against a count-up survival clock — bite score instead.
+          const stolen = Math.min(score, atk.power * 5);
+          score -= stolen;
+          scoreEl.textContent = score;
+          showFloater(slot, `-${stolen} pts`);
+          statusText.textContent = `${slot.enemy.name} burns away your points!`;
+          playSynthTone({ wave: "square", freq: 150 }, { pitchMult: 1, duration: 0.25, volume: 0.15, sweep: 0.4 });
+          break;
+        }
         timeLeft = Math.max(0, timeLeft - atk.power);
         timeEl.textContent = timeLeft;
         timeEl.classList.toggle("time-low", timeLeft <= 10);
@@ -1179,12 +1266,18 @@ function castThunder(tier) {
 
   muteBtn.addEventListener("click", () => setMuted(!muted));
 
-  startBtn.addEventListener("click", startGame);
-  restartBtn.addEventListener("click", startGame);
+  startTimedBtn.addEventListener("click", () => startGame("timed"));
+  startEndlessBtn.addEventListener("click", () => startGame("endless"));
+  restartBtn.addEventListener("click", () => startGame(gameMode));
+  menuBtn.addEventListener("click", () => {
+    endOverlay.classList.add("overlay--hidden");
+    startOverlay.classList.remove("overlay--hidden");
+  });
 
   // ---------- Init ----------
   setMuted(muted);
-  loadHighScore();
+  applyModeLock();
+  loadHighScore(gameMode);
   updatePlayerStats();
   updateHpFill();
   updateComboUI();
