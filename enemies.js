@@ -227,5 +227,94 @@ const ENEMY_ROSTER = [
 // How many enemy slots are active in the arena at once.
 const ARENA_SIZE = 6;
 
-// Hits required to defeat any enemy.
+// Hits required to defeat any enemy (unless the enemy defines its own "hp").
 const HITS_TO_DEFEAT = 3;
+
+/*
+  BOSSES
+  ======
+  Endless Hunt only. Every BOSS_KILL_INTERVAL regular enemies you defeat,
+  one of your active arena slots is taken over by a boss instead of
+  respawning a normal enemy.
+
+  A boss looks like a normal enemy entry but adds:
+    isBoss   - true. Enlarges it on-screen and swaps its hit-pips for a
+               proper health bar above the arena.
+    hp       - hits required to defeat it. Make this much higher than
+               HITS_TO_DEFEAT (3) — that's the whole point of a boss.
+    attacks  - an ARRAY of attack objects (instead of a single "attack"),
+               each shaped exactly like a normal enemy's attack. The boss
+               picks one at random each time its cooldown expires, so it
+               keeps mixing up its moveset instead of repeating one trick.
+               Add "desktopOnly: true" to any attack that depends on a
+               persistent mouse cursor (namely "projectile" attacks) —
+               those are automatically dropped from the pool on touch
+               devices, and the boss just uses its other attacks instead,
+               so it still fights back on mobile without being unfair.
+
+  Attack type reference: see the ENEMY_ROSTER comment above for cloak,
+  mp-drain, combo-break, dodge, time-steal, score-steal, and projectile.
+  Bosses can additionally use:
+    "hp-slam"  a direct, unavoidable-by-dodging hit to the player's HP
+               (power = damage). Can still be interrupted by landing a
+               hit on the boss during its windup, same as any attack.
+*/
+
+const BOSS_KILL_INTERVAL = 50;
+
+const BOSS_ROSTER = [
+  {
+    name: "Nightmare Colossus",
+    image: "https://placehold.co/420x420/141a3d/ff2d55?text=NIGHTMARE%0ACOLOSSUS&font=raleway",
+    isBoss: true,
+    points: 400,
+    tint: "#ff2d55",
+    speed: 26,
+    hp: 24,
+    sound: { wave: "sawtooth", freq: 130 },
+    hitSounds: [
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2311.wav",
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2312.wav",
+      "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2313.wav"
+    ],
+    attacks: [
+      {
+        name: "Meteor Barrage",
+        type: "projectile",
+        color: "#ff2d55",
+        telegraph: 1100,
+        cooldownMin: 3200,
+        cooldownMax: 4800,
+        power: 10,
+        projectileCount: 9,
+        desktopOnly: true // needs a persistent cursor to aim at — desktop/mouse only
+      },
+      {
+        name: "Heartquake",
+        type: "hp-slam",
+        color: "#ff8a3d",
+        telegraph: 1300,
+        cooldownMin: 5000,
+        cooldownMax: 7500,
+        power: 16
+      },
+      {
+        name: "Soul Drain",
+        type: "mp-drain",
+        color: "#b98bff",
+        telegraph: 900,
+        cooldownMin: 4500,
+        cooldownMax: 6500,
+        power: 35
+      },
+      {
+        name: "Despair Wave",
+        type: "combo-break",
+        color: "#6bc6ff",
+        telegraph: 1000,
+        cooldownMin: 6000,
+        cooldownMax: 9000
+      }
+    ]
+  }
+];
