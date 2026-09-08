@@ -153,6 +153,9 @@
   function restoreMp(amount) {
     currentMp = Math.min(maxMp, currentMp + amount);
     mpFillEl.style.width = `${(currentMp / maxMp) * 100}%`;
+    mpFillEl.classList.remove("mp-flash");
+    void mpFillEl.offsetWidth;
+    mpFillEl.classList.add("mp-flash");
   }
 
   function drainMp(amount) {
@@ -237,7 +240,7 @@
 
   function updateComboUI() {
     const tier = getComboTier(combo);
-    comboCountEl.textContent = `${combo}x COMBO`;
+    comboCountEl.textContent = `${combo}x`;
     comboCountEl.style.color = tier.color;
     const elapsed = combo > 0 ? performance.now() - lastKillAt : 0;
     const pct = combo > 0 ? Math.max(0, 100 - (elapsed / COMBO_WINDOW_MS) * 100) : 0;
@@ -1064,6 +1067,11 @@ function stepMovement(dt) {
       localStorage.setItem(XP_KEY, String(playerXp));
       updatePlayerStats();
 
+      // MP regen on kill, scaling with magic tier so late-game casting stays sustainable.
+      const mpGain = 8 + getMagicTier() * 4;
+      restoreMp(mpGain);
+      showArenaFloater(slot.x + w / 2 + 30, slot.y - 6, `+${mpGain} MP`, "var(--cyan)");
+
       setTimeout(() => {
         if (!gameActive) return;
         spawnEnemyInSlot(slot);
@@ -1168,33 +1176,41 @@ function castThunder(tier) {
     const shuffled = [...slots].sort(() => 0.5 - Math.random());
     const targets = shuffled.slice(0, targetCount);
 
+    // Bolts per strike scales with tier: Thunder = 1 bolt, Thundara = 2 bolts
+    // side-by-side, Thundaga = 3 bolts side-by-side, each landing its own hit.
+    const boltsPerStrike = tier;
+    const boltWidth = 22 + (tier * 10);
+    const boltSpacing = boltWidth + 8;
+
     targets.forEach((slot, index) => {
       setTimeout(() => {
         if (!gameActive) return;
-        const bolt = document.createElement('div');
-        bolt.className = 'thundaga-bolt';
         const w = slot.w || 100;
-        
-        // 5. THUNDER BIGGER: Visual width increases with tier
-        const boltWidth = 30 + (tier * 20); 
-        bolt.style.width = boltWidth + 'px';
-        bolt.style.height = '100%';
-        bolt.style.left = (slot.x + w / 2 - (boltWidth / 2)) + 'px';
-        bolt.style.top = '0';
-        arena.appendChild(bolt);
+        const centerX = slot.x + w / 2;
 
         playSynthTone({ wave: "square", freq: 400 - (tier * 20) }, { pitchMult: 1.5, duration: 0.15, volume: 0.15 + (tier * 0.05), sweep: 0.3 });
-        
-        // 6. THUNDER STRONGER: Hits multiple times based on tier (Thundaga hits 3 times)
-        for (let hit = 0; hit < tier; hit++) {
-           setTimeout(() => {
-              if (slot.hp > 0 && !slot.locked) {
-                 handleHit(slot, { clientX: arena.getBoundingClientRect().left + slot.x, clientY: arena.getBoundingClientRect().top + slot.y });
-              }
-           }, hit * 100);
-        }
 
-        setTimeout(() => bolt.remove(), 300 + (tier * 50));
+        // Fire a cluster of bolts for this target — more of them at higher tiers —
+        // each one re-striking the enemy a beat apart for a visibly heavier hit.
+        for (let hit = 0; hit < boltsPerStrike; hit++) {
+          setTimeout(() => {
+            if (!gameActive) return;
+            const offset = (hit - (boltsPerStrike - 1) / 2) * boltSpacing;
+
+            const bolt = document.createElement('div');
+            bolt.className = 'thundaga-bolt';
+            bolt.style.width = boltWidth + 'px';
+            bolt.style.height = '100%';
+            bolt.style.left = (centerX + offset - boltWidth / 2) + 'px';
+            bolt.style.top = '0';
+            arena.appendChild(bolt);
+            setTimeout(() => bolt.remove(), 300 + (tier * 50));
+
+            if (slot.hp > 0 && !slot.locked) {
+              handleHit(slot, { clientX: arena.getBoundingClientRect().left + centerX, clientY: arena.getBoundingClientRect().top + slot.y });
+            }
+          }, hit * 110);
+        }
       }, index * 100);
     });
   }
