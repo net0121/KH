@@ -285,7 +285,7 @@ const BOSS_ROSTER = [
         telegraph: 1100,
         cooldownMin: 3200,
         cooldownMax: 4800,
-        power: 10,
+        power: 20,
         projectileCount: 9,
         desktopOnly: true // needs a persistent cursor to aim at — desktop/mouse only
       },
@@ -296,7 +296,7 @@ const BOSS_ROSTER = [
         telegraph: 1300,
         cooldownMin: 5000,
         cooldownMax: 7500,
-        power: 16
+        power: 19
       },
       {
         name: "Soul Drain",
@@ -305,7 +305,7 @@ const BOSS_ROSTER = [
         telegraph: 900,
         cooldownMin: 4500,
         cooldownMax: 6500,
-        power: 35
+        power: 55
       },
       {
         name: "Despair Wave",
@@ -314,53 +314,6 @@ const BOSS_ROSTER = [
         telegraph: 1000,
         cooldownMin: 6000,
         cooldownMax: 9000
-      }
-    ]
-  },
-  {
-        name: "Despair Frair",
-    image: "https://placehold.co/420x420/141a3d/ff2d55?text=NIGHTMARE%0ACOLOSSUS&font=raleway",
-    isBoss: true,
-    points: 4500,
-    BOSS_KILL_INTERVAL = 80,
-    tint: "#ff2d55",
-    speed: 36,
-    hp: 54,
-    sound: { wave: "sawtooth", freq: 130 },
-    hitSounds: [
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2311.wav",
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2312.wav",
-      "https://file.garden/ZnTkuwEIPj2gHUsg/se02001%2313.wav"
-    ],
-    attacks: [
-      {
-        name: "Meteor Barrage",
-        type: "projectile",
-        color: "#ff2d55",
-        telegraph: 1100,
-        cooldownMin: 3200,
-        cooldownMax: 4800,
-        power: 15,
-        projectileCount: 9,
-        desktopOnly: true // needs a persistent cursor to aim at — desktop/mouse only
-      },
-      {
-        name: "Heartquake",
-        type: "hp-slam",
-        color: "#ff8a3d",
-        telegraph: 1300,
-        cooldownMin: 5000,
-        cooldownMax: 7500,
-        power: 30
-      },
-      {
-        name: "Soul Drain",
-        type: "mp-drain",
-        color: "#b98bff",
-        telegraph: 900,
-        cooldownMin: 4500,
-        cooldownMax: 6500,
-        power: 35
       }
     ]
   }
