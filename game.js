@@ -11,7 +11,7 @@
 
   const ENDLESS_DIFFICULTY_INTERVAL_S = 20; // ramp difficulty every N seconds survived
   const ENDLESS_DIFFICULTY_STEP = 1.15;     // +15% speed / attack frequency per ramp
-  const ENDLESS_DIFFICULTY_CAP = 5.5;       // hard ceiling on the multiplier
+  const ENDLESS_DIFFICULTY_CAP = 10.5;       // hard ceiling on the multiplier
 
   const THUNDER_PNG_URL = "https://github.com/net0121/KH/blob/main/badthundaga.png?raw=true";
   const CURSOR_IMAGE_URL =
@@ -820,13 +820,13 @@ function stepMovement(dt) {
             }
           } else if (b.type === 'aeroga') {
             // 2. STRONGER AERO PUSH: Base push of 150 + 120 per tier
-            const pushStrength = 150 + (b.tier * 120);
+            const pushStrength = 150 + (b.tier * 150);
             const angle = Math.atan2(scy - b.y, scx - b.x);
             slot.x += Math.cos(angle) * pushStrength * dt;
             slot.y += Math.sin(angle) * pushStrength * dt;
             
             // 3. STRONGER AERO DAMAGE: Ticks faster at higher tiers
-            const tickRate = 500 - (b.tier * 120); 
+            const tickRate = 500 - (b.tier * 190); 
             if (!slot.aeroTick || now - slot.aeroTick > tickRate) {
               slot.aeroTick = now;
               handleHit(slot, { clientX: arenaRect.left + scx, clientY: arenaRect.top + scy });
@@ -1102,12 +1102,12 @@ function stepMovement(dt) {
       case "projectile": {
         showFloater(slot, atk.name);
         statusText.textContent = `${slot.enemy.name} fires ${atk.name}!`;
-        const shots = Math.max(1, atk.projectileCount || 1);
+        const shots = Math.max(1, atk.projectileCount || 3);
         for (let i = 0; i < shots; i++) {
           setTimeout(() => {
             if (!gameActive || slot.hp <= 0 || slot.locked) return;
             fireProjectile(slot, atk);
-          }, i * 140);
+          }, i * 340);
         }
         break;
       }
@@ -1242,7 +1242,7 @@ function stepMovement(dt) {
 
     switch (spellIndex) {
       case 0: // Fire
-        spawnBarrier('firaga', 60 + tier * 27, tier);
+        spawnBarrier('firaga', 60 + tier * 37, tier);
         playSynthTone({ wave: "sawtooth", freq: 280 }, { pitchMult: 1.2, duration: 0.5, volume: 0.18, sweep: 0.6 });
         break;
       case 1: // Blizzard
@@ -1260,7 +1260,7 @@ function stepMovement(dt) {
         playSynthTone({ wave: "triangle", freq: 520 }, { pitchMult: 1.3, duration: 0.2, volume: 0.2, sweep: 1.2 });
         break;
       case 5: // Magnet
-        spawnBarrier('magnega', 90 + tier * 25, tier, 3500);
+        spawnBarrier('magnega', 90 + tier * 45, tier, 3500);
         playSynthTone({ wave: "sine", freq: 180 }, { pitchMult: 0.8, duration: 0.35, volume: 0.18, sweep: 1.4 });
         break;
       case 6: // Stop
