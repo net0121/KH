@@ -315,9 +315,10 @@ const BOSS_ROSTER = [
         cooldownMin: 6000,
         cooldownMax: 9000
       }
+    ]
   },
   {
-        name: "Dispair Frair",
+        name: "Despair Frair",
     image: "https://placehold.co/420x420/141a3d/ff2d55?text=NIGHTMARE%0ACOLOSSUS&font=raleway",
     isBoss: true,
     points: 4500,
