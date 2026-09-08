@@ -89,6 +89,9 @@
   const xpFillEl = document.getElementById("xpFill");
   const mpFillEl = document.getElementById("mpFill");
   const hpFillEl = document.getElementById("hpFill");
+  const bossBarEl = document.getElementById("bossBar");
+  const bossNameEl = document.getElementById("bossName");
+  const bossBarFillEl = document.getElementById("bossBarFill");
 
   let score = 0;
   let timeLeft = ROUND_SECONDS;
@@ -104,6 +107,10 @@
   let lastFrameTime = 0;
   let slots = [];
   let muted = localStorage.getItem(MUTED_KEY) === "1";
+
+  let bossActive = false;
+  let bossSlot = null;
+  let killsSinceLastBoss = 0;
 
   let playerXp = Number(localStorage.getItem(XP_KEY)) || 0;
   let playerLevel = 1;
@@ -328,16 +335,21 @@
     node.play().catch(() => {});
   }
 
-  function playHitSound(enemy, hitsLanded) {
+  function playHitSound(enemy, hitsLanded, maxHits) {
+    const total = maxHits || HITS_TO_DEFEAT;
+    const isDefeat = hitsLanded >= total;
     if (enemy.hitSounds && enemy.hitSounds.length) {
-      const clip = enemy.hitSounds[Math.min(hitsLanded, enemy.hitSounds.length) - 1];
+      const idx = isDefeat
+        ? enemy.hitSounds.length - 1
+        : Math.min(hitsLanded - 1, enemy.hitSounds.length - 2 < 0 ? 0 : enemy.hitSounds.length - 2);
+      const clip = enemy.hitSounds[idx];
       if (clip) {
         playFileSound(clip);
         return;
       }
     }
     const cfg = enemy.sound || { wave: "square", freq: 240 };
-    if (hitsLanded >= HITS_TO_DEFEAT) {
+    if (isDefeat) {
       playSynthTone(cfg, { pitchMult: 1.5, duration: 0.16, volume: 0.19 });
       playNoiseBurst({ duration: 0.07, volume: 0.16 });
     } else {
@@ -365,6 +377,8 @@
     if (coarse && noHover) return true;
     return /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent || "");
   }
+
+  const IS_MOBILE = isMobileDevice();
 
   function applyModeLock() {
     const locked = isMobileDevice();
@@ -407,6 +421,12 @@
     updatePlayerStats();
     updateComboUI();
     closeSpellMenu();
+
+    killsSinceLastBoss = 0;
+    bossActive = false;
+    bossSlot = null;
+    bossBarEl.classList.add("overlay--hidden");
+    arena.classList.remove("boss-warning");
 
     buildArena();
     slots.forEach((slot) => spawnEnemyInSlot(slot, { immediate: true }));
@@ -530,11 +550,12 @@
     el.appendChild(pips);
 
     const slot = {
-      el, inner, portrait, nameEl, pipEls, telegraphEl,
-      hp: 0, enemy: null, locked: false,
+      el, inner, portrait, nameEl, pipEls, pipsEl: pips, telegraphEl,
+      hp: 0, maxHp: HITS_TO_DEFEAT, enemy: null, locked: false,
       x: 0, y: 0, vx: 0, vy: 0, w: 0, h: 0,
       wanderRate: 0, freezeTimer: 0, stopTimer: 0, magnetTick: 0, aeroTick: 0,
       moving: true, attackTimer: Infinity, attacking: false, telegraphTimer: 0,
+      pendingAttack: null,
       preAttackVx: 0, preAttackVy: 0, cloakTimer: 0, speedBoostTimer: 0
     };
 
@@ -556,7 +577,7 @@
   let cachedActiveRoster = null;
   function getActiveRoster() {
     if (!cachedActiveRoster) {
-      cachedActiveRoster = isMobileDevice()
+      cachedActiveRoster = IS_MOBILE
         ? ENEMY_ROSTER.filter((enemy) => !enemy.attack || enemy.attack.type !== "projectile")
         : ENEMY_ROSTER;
     }
@@ -568,9 +589,9 @@
     return roster[Math.floor(Math.random() * roster.length)];
   }
 
-  function randomAttackInterval(enemy) {
-    if (!enemy || !enemy.attack) return Infinity;
-    const { cooldownMin = 5000, cooldownMax = 9000 } = enemy.attack;
+  function randomAttackInterval(atk) {
+    if (!atk) return Infinity;
+    const { cooldownMin = 5000, cooldownMax = 9000 } = atk;
     const base = cooldownMin + Math.random() * (cooldownMax - cooldownMin);
     if (gameMode === "endless" && endlessDifficulty > 0) {
       return base / (1 + endlessDifficulty * 0.6);
@@ -578,18 +599,36 @@
     return base;
   }
 
-  function updatePips(slot) {
-    const hitsLanded = HITS_TO_DEFEAT - slot.hp;
-    slot.pipEls.forEach((pip, i) => pip.classList.toggle("filled", i < hitsLanded));
+  // Normal enemies carry a single "attack"; bosses carry an "attacks" array
+  // they pick from at random. On mobile, attacks flagged "desktopOnly"
+  // (ones that need a persistent cursor to aim at, like projectiles) are
+  // dropped from the pool — the enemy just uses whatever's left instead.
+  function getAttackPool(enemy) {
+    if (!enemy) return [];
+    if (enemy.attacks && enemy.attacks.length) {
+      return IS_MOBILE ? enemy.attacks.filter((a) => !a.desktopOnly) : enemy.attacks;
+    }
+    return enemy.attack ? [enemy.attack] : [];
   }
 
-  function spawnEnemyInSlot(slot, { immediate = false } = {}) {
-    const enemy = randomEnemy();
+  function updatePips(slot) {
+    const hitsLanded = slot.maxHp - slot.hp;
+    slot.pipEls.forEach((pip, i) => pip.classList.toggle("filled", i < hitsLanded));
+    if (slot.enemy && slot.enemy.isBoss) {
+      const pct = Math.max(0, Math.min(100, (slot.hp / slot.maxHp) * 100));
+      bossBarFillEl.style.width = `${pct}%`;
+    }
+  }
+
+  function spawnEnemyInSlot(slot, { immediate = false, forcedEnemy = null } = {}) {
+    const enemy = forcedEnemy || randomEnemy();
     slot.enemy = enemy;
-    slot.hp = HITS_TO_DEFEAT;
+    slot.maxHp = enemy.hp || HITS_TO_DEFEAT;
+    slot.hp = slot.maxHp;
     slot.locked = false;
     slot.moving = true;
     slot.attacking = false;
+    slot.pendingAttack = null;
     slot.telegraphTimer = 0;
     slot.cloakTimer = 0;
     slot.freezeTimer = 0;
@@ -606,18 +645,56 @@
     slot.portrait.alt = enemy.name;
     slot.nameEl.textContent = enemy.name;
     slot.el.style.setProperty("--pip-color", enemy.tint);
+    slot.el.classList.toggle("is-boss", !!enemy.isBoss);
+    slot.pipsEl.classList.toggle("is-boss-pips", !!enemy.isBoss);
     updatePips(slot);
 
-    slot.attackTimer = randomAttackInterval(enemy);
+    const pool = getAttackPool(enemy);
+    slot.attackTimer = pool.length
+      ? randomAttackInterval(pool[Math.floor(Math.random() * pool.length)])
+      : Infinity;
 
     randomPositionFor(slot);
     randomVelocityFor(slot);
     placeSlot(slot);
 
+    if (enemy.isBoss) {
+      bossActive = true;
+      bossSlot = slot;
+      bossNameEl.textContent = enemy.name;
+      bossBarFillEl.style.width = "100%";
+      bossBarEl.classList.remove("overlay--hidden");
+      arena.classList.remove("boss-warning");
+      void arena.offsetWidth;
+      arena.classList.add("boss-warning");
+      setTimeout(() => arena.classList.remove("boss-warning"), 1100);
+      statusText.textContent = `A BOSS APPEARS: ${enemy.name}!`;
+      playSynthTone({ wave: "sawtooth", freq: 90 }, { pitchMult: 1, duration: 0.6, volume: 0.22, sweep: 0.3 });
+      playNoiseBurst({ duration: 0.3, volume: 0.2 });
+    } else if (bossSlot === slot) {
+      bossActive = false;
+      bossSlot = null;
+      bossBarEl.classList.add("overlay--hidden");
+    }
+
     if (!immediate) {
       slot.inner.classList.add("is-spawning");
       setTimeout(() => slot.inner.classList.remove("is-spawning"), 300);
     }
+  }
+
+  function pickBoss() {
+    return BOSS_ROSTER[Math.floor(Math.random() * BOSS_ROSTER.length)];
+  }
+
+  // Endless Hunt only: takes over one of the active arena slots with a boss.
+  function trySpawnBoss() {
+    if (!gameActive || gameMode !== "endless" || bossActive) return;
+    const alive = slots.filter((s) => s.hp > 0);
+    const pool = alive.length ? alive : slots;
+    const slot = pool[Math.floor(Math.random() * pool.length)];
+    if (slot.attacking) cancelAttackWindup(slot, { restoreVelocity: false });
+    spawnEnemyInSlot(slot, { forcedEnemy: pickBoss() });
   }
 
   function randomPositionFor(slot) {
@@ -735,7 +812,7 @@ function stepMovement(dt) {
 
         if (dist < (w / 2 + b.radius)) {
           if (b.type === 'firaga') {
-            slot.hp = 1;
+            if (!slot.enemy.isBoss) slot.hp = 1;
             handleHit(slot, { clientX: arenaRect.left + scx, clientY: arenaRect.top + scy });
           } else if (b.type === 'blizzaga') {
             if (!slot.freezeTimer || slot.freezeTimer <= 0) {
@@ -831,6 +908,7 @@ function stepMovement(dt) {
   function cancelAttackWindup(slot, { restoreVelocity = true } = {}) {
     slot.attacking = false;
     slot.telegraphTimer = 0;
+    slot.pendingAttack = null;
     slot.telegraphEl.classList.remove("is-charging");
     if (restoreVelocity) {
       slot.vx = slot.preAttackVx;
@@ -857,20 +935,24 @@ function stepMovement(dt) {
         }
       }
 
-      if (!slot.enemy.attack || slot.freezeTimer > 0 || slot.stopTimer > 0) continue;
+      if (!getAttackPool(slot.enemy).length || slot.freezeTimer > 0 || slot.stopTimer > 0) continue;
 
       if (slot.attacking) {
         slot.telegraphTimer -= dt * 1000;
         if (slot.telegraphTimer <= 0) {
           slot.attacking = false;
           slot.telegraphEl.classList.remove("is-charging");
-          executeEnemyAttack(slot);
-          slot.attackTimer = randomAttackInterval(slot.enemy);
+          const atk = slot.pendingAttack;
+          slot.pendingAttack = null;
+          executeEnemyAttack(slot, atk);
+          slot.attackTimer = randomAttackInterval(atk);
         }
       } else {
         slot.attackTimer -= dt * 1000;
         if (slot.attackTimer <= 0) {
-          const atk = slot.enemy.attack;
+          const pool = getAttackPool(slot.enemy);
+          const atk = pool[Math.floor(Math.random() * pool.length)];
+          slot.pendingAttack = atk;
           slot.attacking = true;
           slot.telegraphTimer = atk.telegraph;
           slot.telegraphEl.style.setProperty("--atk-color", atk.color);
@@ -935,8 +1017,7 @@ function stepMovement(dt) {
     projectile.timeoutId = timeoutId;
   }
 
-  function executeEnemyAttack(slot) {
-    const atk = slot.enemy.attack;
+  function executeEnemyAttack(slot, atk) {
     if (!atk) return;
 
     switch (atk.type) {
@@ -1010,6 +1091,14 @@ function stepMovement(dt) {
         playSynthTone({ wave: "sine", freq: 500 }, { pitchMult: 1, duration: 0.2, volume: 0.12, sweep: 0.4 });
         break;
       }
+      case "hp-slam": {
+        damagePlayer(atk.power);
+        showFloater(slot, `-${atk.power} HP`, "var(--danger)");
+        statusText.textContent = `${slot.enemy.name} unleashes ${atk.name}!`;
+        playSynthTone({ wave: "sawtooth", freq: 140 }, { pitchMult: 1, duration: 0.3, volume: 0.2, sweep: 0.5 });
+        playNoiseBurst({ duration: 0.15, volume: 0.18 });
+        break;
+      }
       case "projectile": {
         showFloater(slot, atk.name);
         statusText.textContent = `${slot.enemy.name} fires ${atk.name}!`;
@@ -1034,14 +1123,14 @@ function stepMovement(dt) {
     if (slot.attacking) cancelAttackWindup(slot);
 
     slot.hp -= 1;
-    const hitsLanded = HITS_TO_DEFEAT - slot.hp;
+    const hitsLanded = slot.maxHp - slot.hp;
     updatePips(slot);
 
     slot.inner.classList.remove("is-hit");
     void slot.inner.offsetWidth;
     slot.inner.classList.add("is-hit");
 
-    playHitSound(enemy, hitsLanded);
+    playHitSound(enemy, hitsLanded, slot.maxHp);
 
     const w = slot.w || slot.el.offsetWidth;
     const h = slot.h || slot.el.offsetHeight;
@@ -1061,14 +1150,27 @@ function stepMovement(dt) {
       score += pts;
       scoreEl.textContent = score;
       showFloater(slot, `+${pts}`, enemy.tint);
-      statusText.textContent = `${enemy.name} defeated!`;
+
+      if (enemy.isBoss) {
+        statusText.textContent = `${enemy.name} is destroyed! +${pts} pts`;
+      } else {
+        statusText.textContent = `${enemy.name} defeated!`;
+        if (gameMode === "endless") {
+          killsSinceLastBoss += 1;
+          if (killsSinceLastBoss >= BOSS_KILL_INTERVAL) {
+            killsSinceLastBoss = 0;
+            setTimeout(trySpawnBoss, 700);
+          }
+        }
+      }
 
       playerXp += enemy.points;
       localStorage.setItem(XP_KEY, String(playerXp));
       updatePlayerStats();
 
       // MP regen on kill, scaling with magic tier so late-game casting stays sustainable.
-      const mpGain = 8 + getMagicTier() * 4;
+      // Bosses hand back extra MP on top, as a reward for surviving the fight.
+      const mpGain = 8 + getMagicTier() * 4 + (enemy.isBoss ? 20 : 0);
       restoreMp(mpGain);
       showArenaFloater(slot.x + w / 2 + 30, slot.y - 6, `+${mpGain} MP`, "var(--cyan)");
 
