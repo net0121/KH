@@ -15,7 +15,7 @@
 
   const THUNDER_PNG_URL = "https://github.com/net0121/KH/blob/main/badthundaga.png?raw=true";
   const CURSOR_IMAGE_URL =
-    "https://github.com/net0121/KH/blob/main/keyblade-bicubic%20(1).png?raw=true";
+    "https://github.com/net0121/KH/blob/main/keyblade%20(1).png?raw=true";
 
   const BASE_SPELLS = ['Fire', 'Blizzard', 'Thunder', 'Cure', 'Reflect', 'Magnet', 'Stop', 'Aero'];
   const BASE_SPELL_COSTS = [10, 15, 20, 18, 15, 22, 25, 20];
@@ -1164,7 +1164,7 @@ function stepMovement(dt) {
   }
 
 function castThunder(tier) {
-    const targetCount = Math.min(slots.length, tier + 2);
+    const targetCount = Math.min(slots.length, tier + 6);
     const shuffled = [...slots].sort(() => 0.5 - Math.random());
     const targets = shuffled.slice(0, targetCount);
 
