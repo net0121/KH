@@ -4,10 +4,10 @@
   const ROUND_SECONDS = 60;
   const COMBO_WINDOW_MS = 5000;
   const HIT_BASE_SCORE = 3;
-  const HIGH_SCORE_KEY = "keyOfLightHighScore";
-  const ENDLESS_HIGH_SCORE_KEY = "keyOfLightEndlessHighScore";
-  const MUTED_KEY = "keyOfLightMuted";
-  const XP_KEY = "keyOfLightXP";
+  const HIGH_SCORE_KEY = "KHHighScore";
+  const ENDLESS_HIGH_SCORE_KEY = "KHEndlessHighScore";
+  const MUTED_KEY = "KHMuted";
+  const XP_KEY = "KHXP";
 
   const ENDLESS_DIFFICULTY_INTERVAL_S = 20; // ramp difficulty every N seconds survived
   const ENDLESS_DIFFICULTY_STEP = 1.15;     // +15% speed / attack frequency per ramp
