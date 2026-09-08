@@ -2,32 +2,54 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
   <title>Kingdom Hearts</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="cabinet">
-    <button id="muteBtn" class="mute-btn" type="button" aria-label="Mute sound">🔊</button>
+    <div class="topbar">
+      <div class="topbar-brand">THE KEY</div>
+      <button id="muteBtn" class="mute-btn" type="button" aria-label="Mute sound">🔊</button>
+    </div>
 
     <header class="hud">
-      <div class="hud-stat">
-        <div class="hud-label">SCORE</div>
-        <div id="score" class="hud-value">0</div>
-        <div class="stat-track"><div id="xpFill" class="stat-fill xp-fill"></div></div>
+      <div class="hud-top">
+        <div class="hud-stat">
+          <div class="hud-label">SCORE</div>
+          <div id="score" class="hud-value">0</div>
+        </div>
+        <div class="hud-stat">
+          <div class="hud-label">LEVEL</div>
+          <div id="levelDisplay" class="hud-value">1</div>
+        </div>
+        <div class="hud-stat hud-stat--combo">
+          <div class="hud-label">COMBO</div>
+          <div id="comboCount" class="hud-value">0x</div>
+        </div>
+        <div class="hud-stat hud-stat--right">
+          <div id="timeLabel" class="hud-label">TIME</div>
+          <div id="time" class="hud-value">60</div>
+        </div>
       </div>
-      <div class="hud-stat hud-stat--right">
-        <div class="hud-label">LVL <span id="levelDisplay">1</span> MP</div>
-        <div class="stat-track"><div id="mpFill" class="stat-fill mp-fill"></div></div>
-        <div class="stat-track" style="margin-top:2px;"><div id="hpFill" class="stat-fill hp-fill"></div></div>
-      </div>
-      <div class="hud-combo">
-        <div id="comboCount">0x COMBO</div>
-        <div class="combo-track"><div id="comboFill" class="combo-fill"></div></div>
-      </div>
-      <div class="hud-stat hud-stat--right">
-        <div id="timeLabel" class="hud-label">TIME</div>
-        <div id="time" class="hud-value">60</div>
+
+      <div class="hud-bars">
+        <div class="bar-row">
+          <span class="bar-label bar-label--hp">HP</span>
+          <div class="stat-track hp-track"><div id="hpFill" class="stat-fill hp-fill"></div></div>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label bar-label--mp">MP</span>
+          <div class="stat-track mp-track"><div id="mpFill" class="stat-fill mp-fill"></div></div>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label bar-label--xp">XP</span>
+          <div class="stat-track xp-track"><div id="xpFill" class="stat-fill xp-fill"></div></div>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label bar-label--chain">CHAIN</span>
+          <div class="combo-track"><div id="comboFill" class="combo-fill"></div></div>
+        </div>
       </div>
     </header>
 
