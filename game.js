@@ -10,8 +10,8 @@
   const XP_KEY = "keyOfLightXP";
 
   const ENDLESS_DIFFICULTY_INTERVAL_S = 20; // ramp difficulty every N seconds survived
-  const ENDLESS_DIFFICULTY_STEP = 0.15;     // +15% speed / attack frequency per ramp
-  const ENDLESS_DIFFICULTY_CAP = 2.5;       // hard ceiling on the multiplier
+  const ENDLESS_DIFFICULTY_STEP = 1.15;     // +15% speed / attack frequency per ramp
+  const ENDLESS_DIFFICULTY_CAP = 5.5;       // hard ceiling on the multiplier
 
   const THUNDER_PNG_URL = "https://github.com/net0121/KH/blob/main/badthundaga.png?raw=true";
   const CURSOR_IMAGE_URL =
