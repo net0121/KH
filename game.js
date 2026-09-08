@@ -14,6 +14,8 @@
   const ENDLESS_DIFFICULTY_CAP = 2.5;       // hard ceiling on the multiplier
 
   const THUNDER_PNG_URL = "https://github.com/net0121/KH/blob/main/badthundaga.png?raw=true";
+  const CURSOR_IMAGE_URL =
+    "https://github.com/net0121/KH/blob/main/keyblade-bicubic%20(1).png?raw=true";
 
   const BASE_SPELLS = ['Fire', 'Blizzard', 'Thunder', 'Cure', 'Reflect', 'Magnet', 'Stop', 'Aero'];
   const BASE_SPELL_COSTS = [10, 15, 20, 18, 15, 22, 25, 20];
@@ -28,6 +30,20 @@
 
   const prefersReducedMotion =
     window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // The projectile "dodge" hit-test uses the actual size of the cursor image
+  // (the keyblade graphic that follows the pointer) instead of a guessed radius.
+  // Falls back to a reasonable default until the image finishes loading.
+  let cursorHitRadius = 42;
+  (function loadCursorHitbox() {
+    const img = new Image();
+    img.onload = () => {
+      if (img.naturalWidth && img.naturalHeight) {
+        cursorHitRadius = Math.max(img.naturalWidth, img.naturalHeight) / 2;
+      }
+    };
+    img.src = CURSOR_IMAGE_URL;
+  })();
 
   let mouseX = 0;
   let mouseY = 0;
@@ -531,8 +547,22 @@
     return slot;
   }
 
+  // Projectile enemies rely on a persistent mouse cursor position to aim
+  // and to let the player dodge — that doesn't exist on touch devices, so
+  // they're left out of the roster entirely on mobile.
+  let cachedActiveRoster = null;
+  function getActiveRoster() {
+    if (!cachedActiveRoster) {
+      cachedActiveRoster = isMobileDevice()
+        ? ENEMY_ROSTER.filter((enemy) => !enemy.attack || enemy.attack.type !== "projectile")
+        : ENEMY_ROSTER;
+    }
+    return cachedActiveRoster;
+  }
+
   function randomEnemy() {
-    return ENEMY_ROSTER[Math.floor(Math.random() * ENEMY_ROSTER.length)];
+    const roster = getActiveRoster();
+    return roster[Math.floor(Math.random() * roster.length)];
   }
 
   function randomAttackInterval(enemy) {
@@ -889,7 +919,7 @@ function stepMovement(dt) {
       activeProjectiles = activeProjectiles.filter((p) => p !== projectile);
       if (!gameActive) return;
 
-      const hitRadius = 42;
+      const hitRadius = cursorHitRadius;
       const playerDist = Math.hypot(mouseX - targetX, mouseY - targetY);
       if (playerDist < hitRadius) {
         damagePlayer(atk.power);
@@ -980,7 +1010,13 @@ function stepMovement(dt) {
       case "projectile": {
         showFloater(slot, atk.name);
         statusText.textContent = `${slot.enemy.name} fires ${atk.name}!`;
-        fireProjectile(slot, atk);
+        const shots = Math.max(1, atk.projectileCount || 1);
+        for (let i = 0; i < shots; i++) {
+          setTimeout(() => {
+            if (!gameActive || slot.hp <= 0 || slot.locked) return;
+            fireProjectile(slot, atk);
+          }, i * 140);
+        }
         break;
       }
     }
