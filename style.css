@@ -255,6 +255,52 @@ body {
   100% { filter: brightness(1); }
 }
 
+.arena-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 6px;
+}
+
+.boss-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(10, 14, 39, 0.75);
+  border: 2px solid var(--danger);
+  box-shadow: 0 0 16px rgba(255, 45, 85, 0.4);
+}
+
+.boss-bar-name {
+  flex: 0 0 auto;
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--danger);
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.boss-bar-track {
+  flex: 1 1 auto;
+  height: 14px;
+  background: #0b0e24;
+  border: 2px solid var(--edge);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.boss-bar-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, var(--danger), #ff8a3d);
+  transition: width 0.2s ease;
+}
+
 .arena {
   position: relative;
   flex: 1 1 auto;
@@ -263,6 +309,15 @@ body {
   background: rgba(11, 14, 36, 0.4);
   overflow: hidden;
   touch-action: none;
+}
+
+@keyframes bossWarningPulse {
+  0%, 100% { box-shadow: inset 0 0 0 0 rgba(255, 45, 85, 0); }
+  50% { box-shadow: inset 0 0 44px 8px rgba(255, 45, 85, 0.55); }
+}
+
+.arena.boss-warning {
+  animation: bossWarningPulse 0.35s ease-in-out 3;
 }
 
 .enemy {
@@ -274,6 +329,28 @@ body {
   will-change: transform;
   cursor: var(--cursor-blade-pointer);
   touch-action: manipulation;
+}
+
+.enemy.is-boss {
+  width: calc(var(--enemy-w) * 1.9);
+  z-index: 4;
+}
+
+.enemy.is-boss .enemy-inner {
+  border-width: 4px;
+  border-color: var(--danger);
+  box-shadow: 0 0 26px rgba(255, 45, 85, 0.6), 0 0 50px rgba(255, 45, 85, 0.3);
+}
+
+.enemy.is-boss .enemy-name {
+  opacity: 1;
+  font-size: 15px;
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.enemy-pips.is-boss-pips {
+  display: none;
 }
 
 .enemy-inner {
@@ -752,6 +829,14 @@ body {
 @media (max-width: 640px) {
   :root {
     --enemy-w: 92px;
+  }
+
+  .enemy.is-boss {
+    width: calc(var(--enemy-w) * 1.6);
+  }
+
+  .boss-bar-name {
+    font-size: 12px;
   }
 
   .cabinet {
