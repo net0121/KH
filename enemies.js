@@ -225,7 +225,7 @@ const ENEMY_ROSTER = [
 ];
 
 // How many enemy slots are active in the arena at once.
-const ARENA_SIZE = 6;
+const ARENA_SIZE = 9;
 
 // Hits required to defeat any enemy (unless the enemy defines its own "hp").
 const HITS_TO_DEFEAT = 3;
