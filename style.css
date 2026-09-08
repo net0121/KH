@@ -462,6 +462,72 @@ body {
 
 .btn:hover { background: var(--cyan); }
 
+/* ---------- Mode Select ---------- */
+
+.mode-select {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.mode-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  line-height: 1.15;
+}
+
+.mode-btn-sub {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: normal;
+  color: rgba(10, 14, 39, 0.65);
+}
+
+.mode-btn:disabled {
+  background: var(--panel-alt);
+  color: var(--text-dim);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.mode-btn:disabled:hover { background: var(--panel-alt); }
+.mode-btn:disabled .mode-btn-sub { color: var(--text-dim); }
+
+.lock-note {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.end-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.btn--secondary {
+  background: transparent;
+  color: var(--text);
+  border: 2px solid var(--edge);
+}
+
+.btn--secondary:hover {
+  background: var(--panel-alt);
+  border-color: var(--cyan);
+}
+
+.survival-note {
+  margin: 2px 0 10px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  color: var(--cyan);
+}
+
 /* ---------- Spells & Barriers ---------- */
 
 .spell-menu {
