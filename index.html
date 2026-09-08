@@ -26,7 +26,7 @@
         <div class="combo-track"><div id="comboFill" class="combo-fill"></div></div>
       </div>
       <div class="hud-stat hud-stat--right">
-        <div class="hud-label">TIME</div>
+        <div id="timeLabel" class="hud-label">TIME</div>
         <div id="time" class="hud-value">60</div>
       </div>
     </header>
@@ -36,7 +36,7 @@
     <footer class="statusbar">
       <span id="statusText">Select or press Magic button to cast spells!</span>
       <button id="magicBtn" class="magic-btn" type="button" aria-haspopup="menu" aria-controls="spellMenu">MAGIC</button>
-      <span>HIGH SCORE: <strong id="highscore">0</strong></span>
+      <span><span id="highscoreLabel">HIGH SCORE</span>: <strong id="highscore">0</strong></span>
     </footer>
   </div>
 
@@ -55,7 +55,17 @@
     <div class="overlay-card">
       <h1>KH Test</h1>
       <p>Poof the heartless before time runs out! Click or tap target entities to strike.</p>
-      <button id="startBtn" class="btn" type="button">START HUNT</button>
+      <div class="mode-select">
+        <button id="startTimedBtn" class="btn mode-btn" type="button">
+          TIMED HUNT
+          <span class="mode-btn-sub">60s score attack</span>
+        </button>
+        <button id="startEndlessBtn" class="btn mode-btn" type="button">
+          ENDLESS HUNT
+          <span class="mode-btn-sub">Survive as long as you can</span>
+        </button>
+      </div>
+      <p id="timedLockNote" class="lock-note overlay--hidden">Timed Hunt is available on desktop only — enjoy Endless Hunt here!</p>
     </div>
   </div>
 
@@ -63,8 +73,12 @@
     <div class="overlay-card">
       <h1 id="endHeading">TIME'S UP!</h1>
       <p class="final-score">FINAL SCORE: <span id="finalScore">0</span></p>
+      <p id="survivalNote" class="survival-note overlay--hidden">Survived <span id="survivalTime">0</span>s</p>
       <p id="newBestNote" class="new-best-note overlay--hidden">★ NEW HIGH SCORE! ★</p>
-      <button id="restartBtn" class="btn" type="button">PLAY AGAIN</button>
+      <div class="end-actions">
+        <button id="restartBtn" class="btn" type="button">PLAY AGAIN</button>
+        <button id="menuBtn" class="btn btn--secondary" type="button">MODE SELECT</button>
+      </div>
     </div>
   </div>
 
